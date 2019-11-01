@@ -57,15 +57,15 @@ In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows si
 
 The NutBerry client-node `js/bin.js` needs the following environment variables:
 
-`BRIDGE_ADDRESS` - 0x... The contract address of the Bridge on the root-chain.
-`PRIV_KEY` - 0x... The private key for a root-chain account. That account should have some ether to be useful.
-`PORT` - The port to listen on for the RPC interface.
-`ROOT_RPC_URL` - The URL of the root-chain rpc provider.
+* `BRIDGE_ADDRESS` - 0x... The contract address of the Bridge on the root-chain.
+* `PRIV_KEY` - 0x... The private key for a root-chain account. That account should have some ether to be useful.
+* `PORT` - The port to listen on for the RPC interface.
+* `ROOT_RPC_URL` - The URL of the root-chain rpc provider.
 
 Optional:
-`HOST` - The address to listen on for the RPC interface. Defaults to `localhost`.
-`DEBUG_MODE` - Used for testing, if `=1` enables additional RPC methods and other things meant for development.
-`BAD_NODE_MODE` - Used for testing, if `=1` it will compute wrong solutions to trigger the verification game.
+* `HOST` - The address to listen on for the RPC interface. Defaults to `localhost`.
+* `DEBUG_MODE` - Used for testing, if `=1` enables additional RPC methods and other things meant for development.
+* `BAD_NODE_MODE` - Used for testing, if `=1` it will compute wrong solutions to trigger the verification game.
 
 # Documentation
 
