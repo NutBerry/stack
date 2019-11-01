@@ -1,5 +1,6 @@
 [![codecov](https://codecov.io/gh/NutBerry/stack/branch/master/graph/badge.svg)](https://codecov.io/gh/NutBerry/stack)
 ![Continuous Integration](https://github.com/NutBerry/stack/workflows/Continuous%20Integration/badge.svg)
+[![Join Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/NutBerry/community)
 
 # NutBerry - Offroading Ethereum Transactions
 `A NutBerry a day keeps the sunshine your way.`
