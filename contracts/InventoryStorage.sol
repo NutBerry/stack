@@ -6,9 +6,7 @@ contract InventoryStorage {
     uint ok = 1;
 
     assembly {
-      let size := 0x800
-
-      for { let i := 0x80 } lt(i, size) { i := add(i, 0x40) } {
+      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
 
         let t := mload(i)
 
@@ -37,9 +35,7 @@ contract InventoryStorage {
 
   function _setStorage (bytes32 target, uint256 value) internal {
     assembly {
-      let size := 0x800
-
-      for { let i := 0x80 } lt(i, size) { i := add(i, 0x40) } {
+      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
         let t := mload(i)
 
         if eq(target, t) {
@@ -60,9 +56,7 @@ contract InventoryStorage {
 
   function _incrementStorage (bytes32 target, uint256 value) internal {
     assembly {
-      let size := 0x800
-
-      for { let i := 0x80 } lt(i, size) { i := add(i, 0x40) } {
+      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
         let t := mload(i)
 
         if eq(target, t) {
@@ -107,6 +101,8 @@ contract InventoryStorage {
     assembly {
       mstore(0, or(shl(64, target), shl(224, 0x0003)))
       mstore(24, shl(96, owner))
+      // we overwrite parts of the freeMemPtr, but this is not a problem because the
+      // memPtr would never be that high and we overwrite only 12 bytes :)
       mstore(44, shl(96, spender))
       ret := keccak256(0, 64)
     }

@@ -106,7 +106,7 @@ contract NutBerryRuntime is EVMRuntime, Inventory {
     return '';
   }
 
-  // does need to handle storage lookups
+  // does need to handle storage lookups for the verification game
   function handleSLOAD(EVM memory state) internal {
     uint key = stackPop(state);
     uint res;
@@ -118,12 +118,10 @@ contract NutBerryRuntime is EVMRuntime, Inventory {
     stackPush(state, res);
   }
 
+  // this is also used just in the verification game at the moment,
+  // don't store it :)
   function handleSSTORE(EVM memory state) internal {
     uint key = stackPop(state);
     uint val = stackPop(state);
-
-    assembly {
-      sstore(key, val)
-    }
   }
 }

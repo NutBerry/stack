@@ -364,11 +364,4 @@ describe('Bridge/RPC', async function () {
       tx = await tx.wait();
     });
   });
-
-  describe('done', () => {
-    it('done', () => {
-      // TODO: leaks, it does not exit without this..
-      process.exit(0);
-    });
-  });
 });

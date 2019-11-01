@@ -1,6 +1,6 @@
 {
   "name": "NutBerry",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "NutBerry",
   "license": "MPL-2.0",
   "bin": {
@@ -11,7 +11,7 @@
     "lint": "eslint scripts/ js/ test/ evm/utils evm/test && solhint contracts/**/*{.sol,.slb}",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 scripts/geth.js",
-    "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --timeout=900000 test/",
+    "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --exit --timeout=900000 test/",
     "coverage": "yarn compile && yarn geth && develatus-apparatus"
   },
   "dependencies": {
@@ -20,7 +20,7 @@
     "rustbn.js": "=0.2.0"
   },
   "devDependencies": {
-    "develatus-apparatus": "https://github.com/pinkiebell/develatus-apparatus.git#0.1.1",
+    "develatus-apparatus": "https://github.com/pinkiebell/develatus-apparatus.git#v0.1.2",
     "eslint": "=6.0.1",
     "mocha": "=6.1.4",
     "solc": "=0.5.2",
