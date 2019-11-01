@@ -7,7 +7,7 @@ import './Verifier.sol';
 contract Bridge is Replayer, Verifier {
   uint16 public constant version = 1;
   uint256 public constant MAX_BLOCK_SIZE = 8096;
-  uint256 public constant MAX_SOLUTION_SIZE = 8096;
+  uint256 public constant MAX_SOLUTION_SIZE = 2048;
   // 1 ether
   uint256 public constant BOND_AMOUNT = 1000000000000000000;
   // >~14 minutes | in Blocks
@@ -449,7 +449,7 @@ contract Bridge is Replayer, Verifier {
     assembly {
       let size := sub(calldatasize, 100)
       // MAX_SOLUTION_SIZE
-      if gt(size, 8096) {
+      if gt(size, 2048) {
         revert(0, 0)
       }
       calldatacopy(0x80, 100, size)

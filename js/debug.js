@@ -32,8 +32,7 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
     const artifact = require('./../build/contracts/Bridge.json');
     let bytecode = artifact.bytecode;
 
-    // Disable stripping of bytecode, this breaks coverage instrumentation
-    /*const meta = 'a265627a7a72305820';
+    const meta = 'a265627a7a72305820';
     const tmp = bytecode.indexOf(meta);
     if (tmp !== -1) {
       bytecode = bytecode.substring(0, tmp);
@@ -49,7 +48,8 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
         break;
       }
       bytecode = n;
-    }*/
+    }
+
     _factory = new ethers.ContractFactory(
       artifact.abi,
       bytecode,
