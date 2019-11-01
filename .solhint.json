@@ -1,0 +1,20 @@
+{
+  "extends": "solhint:default",
+  "rules": {
+    "no-complex-fallback": "warn",
+    "indent": [
+      "error",
+      2
+    ],
+    "quotes": [
+      "error",
+      "single"
+    ],
+    "max-line-length": [
+      "error",
+      140
+    ],
+    "no-inline-assembly": false,
+    "compiler-fixed": true
+  }
+}
