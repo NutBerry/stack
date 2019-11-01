@@ -80,18 +80,21 @@ Contract: ${artifact.contractName}
   process.on('uncaughtException', onException);
   process.on('unhandledRejection', onException);
 
-  const env = {
-    BRIDGE_ADDRESS: bridge.address,
-    ROOT_RPC_URL: rpcUrl,
-    DEBUG_MODE: 1,
-  };
+  const env = Object.assign(
+    {
+      BRIDGE_ADDRESS: bridge.address,
+      ROOT_RPC_URL: rpcUrl,
+      DEBUG_MODE: 1,
+    },
+    process.env
+  );
 
   for (let i = 0; i < 2; i++) {
     // TODO: use getSigner()
     function startNode () {
       const PRIV_KEY = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b750120' + i;
       const _env = Object.assign({ PORT: 8000 + i, PRIV_KEY, BAD_NODE_MODE: (i % 2 !== 0) ? 1 : 0 }, env);
-      const proc = spawn(`${__dirname}/bin.js`, [], { env: _env });
+      const proc = spawn('node', [`${__dirname}/bin.js`], { env: _env });
 
       function onData (buf) {
         let str = buf.toString().split('\n');

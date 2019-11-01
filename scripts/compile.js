@@ -44,7 +44,7 @@ while (files.length) {
   }
 }
 
-const hashFile = 'build/contracts/.hash';
+const hashFile = 'build/.hash';
 const hashBuf = sha256.digest();
 try {
   const buf = fs.readFileSync(hashFile);
