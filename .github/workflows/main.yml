@@ -27,6 +27,7 @@ jobs:
     - name: Setup
       run: |
         yarn
+        sudo yarn global add codecov
         wget 'https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.8.22-7fa3509e.tar.gz' -O - | tar -xz
         sudo mkdir -p /usr/local/bin
         sudo mv geth-*/geth /usr/local/bin
@@ -38,7 +39,5 @@ jobs:
       run: yarn coverage
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1.0.3
-      with:
-        token: ${{secrets.CODECOV_TOKEN}}
-        file: ./coverage-report.json
+      if: success()
+      run: codecov -t ${{ secrets.CODECOV_TOKEN }} -B ${{ github.ref }} -f coverage-report.json
