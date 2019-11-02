@@ -164,16 +164,27 @@ module.exports = class Bridge {
         if (!(await this.isCurrentBlock(this.pendingBlock.number))) {
           // we already moved on
           this.pendingBlock = null;
-          return;
+        } else {
+          const canFinalize = await this.contract.canFinalizeSolution(this.pendingBlock.solution.resultHash);
+
+          this.log(`Can finalize pending block: ${canFinalize}`);
+          if (canFinalize) {
+            const ok = await this.finalizeSolution(this.pendingBlock.hash);
+            if (ok) {
+              this.pendingBlock = null;
+            }
+          }
         }
+      } else {
+        if (!this.debugMode) {
+          const currentBlock = await this.contract.currentBlock();
+          const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
 
-        const canFinalize = await this.contract.canFinalizeSolution(this.pendingBlock.solution.resultHash);
-
-        this.log(`Can finalize pending block: ${canFinalize}`);
-        if (canFinalize) {
-          const ok = await this.finalizeSolution(this.pendingBlock.hash);
-          if (ok) {
-            this.pendingBlock = null;
+          if (block) {
+            // we found the next pending block
+            if (await this.submitSolution(block.hash)) {
+              this.pendingBlock = block;
+            }
           }
         }
       }
@@ -572,13 +583,17 @@ module.exports = class Bridge {
     const obj = await block.computeSolution(this);
     const pathRoot = obj.tree.root.hash;
 
-    let tx = await this.contract.submitSolution(
-      blockHash, obj.resultHash, pathRoot, obj.tree.depth, obj.tree.computeResultProof(),
-      { value: this.bondAmount }
-    );
-    tx = await tx.wait();
+    if (!(await this.contract.timeOfSubmission(obj.resultHash)).eq(0)) {
+      this.log('Bridge.submitSolution: solution exists already');
+    } else {
+      let tx = await this.contract.submitSolution(
+        blockHash, obj.resultHash, pathRoot, obj.tree.depth, obj.tree.computeResultProof(),
+        { value: this.bondAmount }
+      );
+      tx = await tx.wait();
 
-    this.log('Bridge.submitSolution', tx.gasUsed.toString());
+      this.log('Bridge.submitSolution', tx.gasUsed.toString());
+    }
 
     return true;
   }
