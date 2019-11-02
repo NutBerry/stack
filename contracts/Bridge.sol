@@ -403,6 +403,7 @@ contract Bridge is Replayer, Verifier {
 
   /// @dev Returns true if `solutionHash` can be finalized, else false.
   function canFinalizeSolution (bytes32 solutionHash) public view returns (bool) {
+    /*
     bytes32[] storage sols = blockSolutions;
     bytes32 oldestSol;
     uint256 oldestv = block.number;
@@ -420,8 +421,10 @@ contract Bridge is Replayer, Verifier {
     if (oldestSol == 0 || oldestSol != solutionHash) {
       return false;
     }
+    */
+    uint256 time = timeOfSubmission[solutionHash];
     // solution too young
-    if (block.number <= (timeOfSubmission[solutionHash] + INSPECTION_PERIOD)) {
+    if (time == 0 || block.number <= (time + INSPECTION_PERIOD)) {
       return false;
     }
     // if there are still open challenges
