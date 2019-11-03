@@ -102,6 +102,7 @@ if (output.errors) {
 }
 
 if (!output.contracts) {
+  fs.unlinkSync(hashFile);
   process.exit(1);
 }
 
