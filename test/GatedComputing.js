@@ -34,7 +34,15 @@ describe('GatedComputing', async function () {
     const gasUsed = tx.cumulativeGasUsed.toNumber();
     const patchedBytecode = await provider.getCode(addr);
     const patchedBytecodeLength = (patchedBytecode.length - 2) / 2;
-    const runState = await new Runtime().run({ code: ethers.utils.arrayify(patchedBytecode), data: [] });
+    const runState = await new Runtime().run(
+      {
+        code: ethers.utils.arrayify(patchedBytecode),
+        origin: Buffer.alloc(20).fill(0xfa),
+        caller: Buffer.alloc(20).fill(0xfa),
+        address: Buffer.alloc(20).fill(0xfa),
+        data: [],
+      }
+    );
 
     assert.equal(runState.opName, 'RETURN', 'return-opcode');
     assert.equal(runState.returnValue.toString('hex'), Buffer.alloc(32).toString('hex'), 'returnValue');

@@ -193,8 +193,7 @@ contract GatedComputing {
 
         if iszero(skip) {
           mstore8(offset, opcode)
-          offset := add(offset, 1)
-          //offset := maybePatch(opcode, i, offset)
+          offset := maybePatch(opcode, i, offset)
         }
       }
 
