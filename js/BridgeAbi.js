@@ -26,18 +26,6 @@ module.exports = [
         'name': 'solutionHash',
         'type': 'bytes32',
       },
-      {
-        'name': 'pathRoot',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'executionDepth',
-        'type': 'uint256',
-      },
-      {
-        'name': 'resultProof',
-        'type': 'bytes32[]',
-      },
     ],
     'name': 'submitSolution',
     'outputs': [],
@@ -46,138 +34,10 @@ module.exports = [
     'type': 'function',
   },
   {
-    'constant': true,
-    'inputs': [
-      {
-        'name': '',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'disputes',
-    'outputs': [
-      {
-        'name': 'initialStateHash',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'solverPath',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'challengerPath',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'treeDepth',
-        'type': 'uint256',
-      },
-      {
-        'name': 'witness',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'solverLeft',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'solverRight',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'challengerLeft',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'challengerRight',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'state',
-        'type': 'uint8',
-      },
-      {
-        'name': 'timeout',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [
-      {
-        'name': 'target',
-        'type': 'address',
-      },
-    ],
-    'name': 'getNonce',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [
-      {
-        'name': 'target',
-        'type': 'address',
-      },
-      {
-        'name': 'owner',
-        'type': 'address',
-      },
-    ],
-    'name': 'getExit',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [
-      {
-        'name': '',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'timeOfSubmission',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
     'constant': false,
     'inputs': [
       {
         'name': 'blockHash',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'solutionHash',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'pathRoot',
         'type': 'bytes32',
       },
     ],
@@ -199,45 +59,6 @@ module.exports = [
     ],
     'payable': false,
     'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': false,
-    'inputs': [],
-    'name': 'offroadReplay',
-    'outputs': [],
-    'payable': false,
-    'stateMutability': 'nonpayable',
-    'type': 'function',
-  },
-  {
-    'constant': false,
-    'inputs': [
-      {
-        'name': 'disputeId',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'computationPathLeft',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'computationPathRight',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'witnessPathLeft',
-        'type': 'bytes32',
-      },
-      {
-        'name': 'witnessPathRight',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'respond',
-    'outputs': [],
-    'payable': false,
-    'stateMutability': 'nonpayable',
     'type': 'function',
   },
   {
@@ -301,88 +122,6 @@ module.exports = [
     'type': 'function',
   },
   {
-    'constant': true,
-    'inputs': [
-      {
-        'name': 'target',
-        'type': 'address',
-      },
-      {
-        'name': 'owner',
-        'type': 'address',
-      },
-      {
-        'name': 'spender',
-        'type': 'address',
-      },
-    ],
-    'name': 'getAllowanceValue',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [
-      {
-        'name': '_pathRoot',
-        'type': 'bytes32',
-      },
-      {
-        'name': '_resultProof',
-        'type': 'bytes32[]',
-      },
-      {
-        'name': '_returnDataHash',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'verifyResultProof',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'bool',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'pure',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [],
-    'name': 'timeoutDuration',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': false,
-    'inputs': [
-      {
-        'name': 'disputeId',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'claimTimeout',
-    'outputs': [],
-    'payable': false,
-    'stateMutability': 'nonpayable',
-    'type': 'function',
-  },
-  {
     'constant': false,
     'inputs': [],
     'name': 'replay',
@@ -407,15 +146,6 @@ module.exports = [
   },
   {
     'constant': false,
-    'inputs': [],
-    'name': 'submitProof',
-    'outputs': [],
-    'payable': false,
-    'stateMutability': 'nonpayable',
-    'type': 'function',
-  },
-  {
-    'constant': false,
     'inputs': [
       {
         'name': 'blockHash',
@@ -436,11 +166,11 @@ module.exports = [
     'constant': true,
     'inputs': [
       {
-        'name': 'solutionHash',
+        'name': 'blockHash',
         'type': 'bytes32',
       },
     ],
-    'name': 'canFinalizeSolution',
+    'name': 'canFinalizeBlock',
     'outputs': [
       {
         'name': '',
@@ -455,33 +185,6 @@ module.exports = [
     'constant': true,
     'inputs': [],
     'name': 'currentBlock',
-    'outputs': [
-      {
-        'name': '',
-        'type': 'uint256',
-      },
-    ],
-    'payable': false,
-    'stateMutability': 'view',
-    'type': 'function',
-  },
-  {
-    'constant': true,
-    'inputs': [
-      {
-        'name': 'target',
-        'type': 'address',
-      },
-      {
-        'name': 'owner',
-        'type': 'address',
-      },
-      {
-        'name': 'spender',
-        'type': 'address',
-      },
-    ],
-    'name': 'getAllowance',
     'outputs': [
       {
         'name': '',
@@ -535,10 +238,6 @@ module.exports = [
         'name': 'amountOrId',
         'type': 'uint256',
       },
-      {
-        'name': 'depositProof',
-        'type': 'bytes20[]',
-      },
     ],
     'name': 'deposit',
     'outputs': [],
@@ -587,16 +286,6 @@ module.exports = [
         'name': 'solutionHash',
         'type': 'bytes32',
       },
-      {
-        'indexed': false,
-        'name': 'pathRoot',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'depth',
-        'type': 'uint256',
-      },
     ],
     'name': 'Solution',
     'type': 'event',
@@ -609,21 +298,6 @@ module.exports = [
         'name': 'blockHash',
         'type': 'bytes32',
       },
-      {
-        'indexed': false,
-        'name': 'solverPath',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'challengerPath',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'disputeId',
-        'type': 'bytes32',
-      },
     ],
     'name': 'NewDispute',
     'type': 'event',
@@ -633,7 +307,7 @@ module.exports = [
     'inputs': [
       {
         'indexed': false,
-        'name': 'id',
+        'name': 'blockHash',
         'type': 'bytes32',
       },
       {
@@ -643,33 +317,6 @@ module.exports = [
       },
     ],
     'name': 'Slashed',
-    'type': 'event',
-  },
-  {
-    'anonymous': false,
-    'inputs': [
-      {
-        'indexed': true,
-        'name': 'disputeId',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'timeout',
-        'type': 'uint256',
-      },
-      {
-        'indexed': false,
-        'name': 'solverPath',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'challengerPath',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'DisputeNewRound',
     'type': 'event',
   },
 ];

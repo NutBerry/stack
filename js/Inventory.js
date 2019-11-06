@@ -45,6 +45,7 @@ module.exports = class Inventory {
   constructor () {
     this.tokenBag = {};
     this.allowances = {};
+    this.storageKeys = {};
   }
 
   toJSON () {
@@ -78,6 +79,45 @@ module.exports = class Inventory {
     const ret = this.toJSON();
 
     return this.constructor.fromJSON(ret);
+  }
+
+  _incrementExit (target, owner, value) {
+    // TODO
+    // increment
+    let k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000001' + owner.replace('0x', '') + target.replace('0x', ''),
+        'hex'
+      )
+    );
+
+    value = `0x${value.toString(16).padStart(64, '0')}`;
+    this.storageKeys[k] = value;
+  }
+
+  trackNonce (target, value) {
+    const k = '0x' + target.replace('0x', '').padStart(64, '0');
+    this.storageKeys[k] = '0x' + value.toString(16).padStart(64, '0');
+  }
+
+  _hashERC20 (target, owner, value) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000002' + target.replace('0x', '') + owner.replace('0x', ''),
+        'hex'
+      )
+    );
+    this.storageKeys[k] = value;
+  }
+
+  _hashAllowance (target, owner, spender, value) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000003' + target.replace('0x', '') + owner.replace('0x', '') + spender.replace('0x', ''),
+        'hex'
+      )
+    );
+    this.storageKeys[k] = value;
   }
 
   addToken (e) {
@@ -145,11 +185,14 @@ module.exports = class Inventory {
 
   getAllowance (target, owner, spender) {
     const allowance = this.allowances[target + owner + spender];
-    return allowance;
+    return allowance || UINT256_ZERO;
   }
 
   setAllowance (target, owner, spender, value) {
+    // TODO
     this.allowances[target + owner + spender] = value;
+    this._hashAllowance(target, owner, spender, value);
+    return '0000000000000000000000000000000000000000000000000000000000000001';
   }
 
   addAllowance (target, owner, spender, value) {
@@ -161,7 +204,7 @@ module.exports = class Inventory {
     let old = BigInt(tmp || '0');
     let newVal = old + BigInt(value);
     tmp = `0x${newVal.toString(16).padStart(64, '0')}`;
-    
+
     this.allowances[target + owner + spender] = tmp;
   }
 
@@ -231,17 +274,26 @@ module.exports = class Inventory {
 
       if (has >= want) {
         e.value = `0x${(has - want).toString(16).padStart(64, '0')}`;
-        if (!targetEntry) {
-          const newEntry = {
-            address: target,
-            owner: to,
-            value: value,
-            data: '0x0000000000000000000000000000000000000000000000000000000000000000',
-            isERC20: true,
-          };
-          this.addToken(newEntry);
+        this._hashERC20(target, msgSender, e.value);
+
+        if (to === this._bridgeAddr) {
+          this._incrementExit(target, msgSender, want);
         } else {
-          targetEntry.value = `0x${(BigInt(targetEntry.value) + want).toString(16).padStart(64, '0')}`;
+          // TODO: hash exits
+          if (!targetEntry) {
+            const newEntry = {
+              address: target,
+              owner: to,
+              value: value,
+              data: '0x0000000000000000000000000000000000000000000000000000000000000000',
+              isERC20: true,
+            };
+            this.addToken(newEntry);
+            this._hashERC20(target, to, newEntry.value);
+          } else {
+            targetEntry.value = `0x${(BigInt(targetEntry.value) + want).toString(16).padStart(64, '0')}`;
+            this._hashERC20(target, to, targetEntry.value);
+          }
         }
 
         return '0000000000000000000000000000000000000000000000000000000000000001';
@@ -266,23 +318,31 @@ module.exports = class Inventory {
       }
       if (e.owner !== msgSender) {
         this.allowances[target + from + msgSender] = `0x${(allowance - want).toString(16).padStart(64, '0')}`;
+        this._hashAllowance(target, from, msgSender, `0x${(allowance - want).toString(16).padStart(64, '0')}`);
       }
       e.value = `0x${(has - want).toString(16).padStart(64, '0')}`;
+      this._hashERC20(target, from, e.value);
 
       // now update `to`
-      const oldEntry = this.getERC20(target, to);
-      if (oldEntry) {
-        const val = BigInt(oldEntry.value) + BigInt(tokenId);
-        oldEntry.value = `0x${val.toString(16).padStart(64, '0')}`;
+      if (to === this._bridgeAddr) {
+        this._incrementExit(target, from, want);
       } else {
-        const newEntry = {
-          address: target,
-          owner: to,
-          value: tokenId,
-          isERC20: true,
-          data: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        };
-        this.addToken(newEntry);
+        const oldEntry = this.getERC20(target, to);
+        if (oldEntry) {
+          const val = BigInt(oldEntry.value) + BigInt(tokenId);
+          oldEntry.value = `0x${val.toString(16).padStart(64, '0')}`;
+          this._hashERC20(target, to, oldEntry.value);
+        } else {
+          const newEntry = {
+            address: target,
+            owner: to,
+            value: tokenId,
+            isERC20: true,
+            data: '0x0000000000000000000000000000000000000000000000000000000000000000',
+          };
+          this._hashERC20(target, to, newEntry.value);
+          this.addToken(newEntry);
+        }
       }
       return '0000000000000000000000000000000000000000000000000000000000000001';
     } else {

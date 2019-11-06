@@ -5,7 +5,6 @@ const ethers = require('ethers');
 const BerryInventory = require('./BerryInventory.js');
 const Block = require('./Block.js');
 const NutBerryRuntime = require('./NutBerryRuntime.js');
-const ExecutionPoker = require('./ExecutionPoker.js');
 const { DEFAULT_CONTRACT } = require('./DefaultContract.js');
 const Utils = require('./Utils.js');
 
@@ -20,10 +19,10 @@ const EVENT_CHECK_MS = 1000;
 const TOPIC_DEPOSIT = '0x5548c837ab068cf56a2c2479df0882a4922fd203edb7517321831d95078c5f62';
 // BlockBeacon()
 const TOPIC_BEACON = '0x98f7f6a06026bc1e4789634d93bff8d19b1c3b070cc440b6a6ae70bae9fec6dc';
-// NewSolution(bytes32,bytes32,bytes32,uint256)
-const TOPIC_SOLUTION = '0xde1197c6c4ad273a0a7a1fb97645ef73bfe35b1314100118401dd6bdc2738d90';
-// NewDispute(bytes32,bytes32,bytes32,bytes32)
-const TOPIC_DISPUTE = '0x15989440c9c9805e937a844cb6c9f7611ac2f5e110f9e7c232eeae268a9bff95';
+// NewSolution(bytes32,bytes32)
+const TOPIC_SOLUTION = '0x8f83eb5964d76be4a4f1e1f29afb7dabf96121727cae0afe196f30d4e57e9a48';
+// NewDispute(bytes32)
+const TOPIC_DISPUTE = '0x16c365760145ef041452748ec5c20f2d9fb23924ea026eeb18935ff81e3238f9';
 // Slashed(bytes32,bool)
 const TOPIC_SLASHED = '0x6c48028c877b18aadc31081febd708cb0b41fb44ee7dd7bc071063b95c967029';
 // DisputeNewRound(bytes32,uint256,bytes32,bytes32)
@@ -38,8 +37,6 @@ module.exports = class Bridge {
     this.badNodeMode = options.badNodeMode ? true : false;
     this.deposits = [];
     this.blocks = [];
-    this.disputes = {};
-    this.currentBlock = new Block(null, this);
 
     this.rootProvider = new ethers.providers.JsonRpcProvider(options.rootRpcUrl);
     if (options.privKey) {
@@ -48,12 +45,11 @@ module.exports = class Bridge {
       this.log('Warning: No private key - Using random wallet');
       this.signer = ethers.Wallet.createRandom().connect(this.rootProvider);
     }
+    // TODO
+    global.provider = this.rootProvider;
 
     this.contract = new ethers.Contract(options.contract, BRIDGE_ABI, this.signer);
-    this._transferFromBridgeSig =
-      '0x23b872dd000000000000000000000000' +
-      this.contract.address.replace('0x', '').toLowerCase();
-
+    this.currentBlock = new Block(null, this);
     this.eventFilter = {
       fromBlock: 0,
       toBlock: 0,
@@ -69,9 +65,7 @@ module.exports = class Bridge {
         const owner = o.owner;
         const token = o.token;
         const data = { address: token, owner: owner, value: value, isERC20: true };
-
-        this.deposits.push(data);
-        this.currentBlock.addDeposit(data, this);
+        await this.onDeposit(data);
       };
     this.eventHandlers[TOPIC_BEACON] =
       async (evt) => {
@@ -81,17 +75,17 @@ module.exports = class Bridge {
       };
     this.eventHandlers[TOPIC_SOLUTION] =
       async (evt) => {
-        const { blockHash, solutionHash, pathRoot, depth } =
+        const { blockHash, solutionHash } =
           this.contract.interface.events.Solution.decode(evt.data);
 
-        await this.onSolution(blockHash, solutionHash, pathRoot, depth, evt);
+        await this.onSolution(blockHash, solutionHash, evt);
       };
     this.eventHandlers[TOPIC_DISPUTE] =
       async (evt) => {
-        const { blockHash, solverPath, challengerPath, disputeId } =
+        const { blockHash } =
           this.contract.interface.events.NewDispute.decode(evt.data);
 
-        await this.onNewDispute(blockHash, solverPath, challengerPath, disputeId);
+        await this.onNewDispute(blockHash);
       };
 
     this.init();
@@ -160,12 +154,17 @@ module.exports = class Bridge {
         const blockHash = await this.currentBlock.submitBlock(this);
       }
 
+      // TODO
+      // Figure out the next pending block
+      // const currentBlock = await this.contract.currentBlock();
+      // if (currentBlock.add(1).eq(blockNumber))...
+
       if (this.pendingBlock) {
         if (!(await this.isCurrentBlock(this.pendingBlock.number))) {
           // we already moved on
           this.pendingBlock = null;
         } else {
-          const canFinalize = await this.contract.canFinalizeSolution(this.pendingBlock.solution.resultHash);
+          const canFinalize = await this.contract.canFinalizeBlock(this.pendingBlock.hash);
 
           this.log(`Can finalize pending block: ${canFinalize}`);
           if (canFinalize) {
@@ -225,10 +224,36 @@ module.exports = class Bridge {
     setTimeout(this._fetchEvents.bind(this), this.debugMode ? 30 : EVENT_CHECK_MS);
   }
 
+  async onDeposit (data) {
+    const block = new Block(this.blocks[this.blocks.length - 1], this);
+    const pending = block.number;
+    const raw =
+      '0x' +
+      data.owner.replace('0x', '').padStart(64, '0') +
+      data.address.replace('0x', '').padStart(64, '0') +
+      data.value.replace('0x', '') +
+      pending.toString(16).padStart(64, '0');
+    const blockHash = ethers.utils.keccak256(raw);
+    block.addDeposit(data, this);
+
+    block.raw = raw;
+    block.hash = blockHash;
+
+    this.log(`new Deposit-Block ${block.number}/${block.hash}`);
+    this.addBlock(block);
+
+    // TODO: queue this like all the other blocks
+    try {
+      await this.directReplay(block.hash);
+    } catch (e) {
+      this.log('directReplay', e);
+    }
+  }
+
   async onBlockBeacon (tx) {
     const data = tx.data;
     const block = new Block(this.blocks[this.blocks.length - 1], this);
-    const raw = '0x64ef39ca' + data.substring(10, data.length);
+    const raw = '0x' + data.substring(10, data.length);
     const blockHash = ethers.utils.keccak256(raw);
 
     block.raw = raw;
@@ -236,8 +261,7 @@ module.exports = class Bridge {
 
     this.log(`new Block ${block.number}/${block.hash}`);
 
-    // Don't check offset boundaries, the Bridge contract should already rule
-    // malformed transactions out
+    // TODO: validate and skip malformed transactions
     // 0x + function sig
     let offset = 10;
     while (true) {
@@ -344,10 +368,6 @@ module.exports = class Bridge {
       tx.hash = ethers.utils.keccak256(rawHexStr);
       tx.raw = rawHexStr;
 
-      if (tx.data.startsWith(this._transferFromBridgeSig)) {
-        block.depositProof.push(tx.from);
-      }
-
       await block.addTransaction(tx);
     }
 
@@ -366,9 +386,9 @@ module.exports = class Bridge {
     return false;
   }
 
-  async onSolution (blockHash, solutionHash, pathRoot, executionDepth, evt) {
+  async onSolution (blockHash, solutionHash, evt) {
     this.log('Solution registered');
-    this.log({ blockHash, solutionHash, pathRoot });
+    this.log({ blockHash, solutionHash });
 
     const block = await this.getBlockByHash(blockHash);
 
@@ -379,106 +399,34 @@ module.exports = class Bridge {
     }
 
     const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
-    if (mySolution.tree.root.hash === pathRoot) {
-      this.log('Correct solution, exit');
+
+    if (mySolution.hash === solutionHash) {
+      this.log('Block solution looks fine');
       // remember to finalize this one, once we can
       this.pendingBlock = block;
       return;
     }
 
-    const { tree, resultHash } = mySolution;
-
-    if (tree.root.hash === pathRoot) {
-      this.log('Block solution looks fine');
-      return;
-    }
-
-    // we check this here again because computing the solution takes time
-    // and it might be already finalized in the meantime
-    if (!(await this.isCurrentBlock(block.number))) {
-      this.log('Block is not the current active one. Skipping.');
-      return;
-    }
-
-    // if our solution is already registered and OLDER than this (wrong) solution,
-    // we can ignore it
-    let myTime = await this.contract.timeOfSubmission(resultHash);
-    let otherTime = await this.contract.timeOfSubmission(solutionHash);
-    let tx;
-
-    if (myTime.eq(0)) {
-      try {
-        tx = await this.contract.submitSolution(
-          blockHash, resultHash, tree.root.hash, tree.depth, tree.computeResultProof(),
-          { value: this.bondAmount }
-        );
-        tx = await tx.wait();
-        this.log('onSolution:submitSolution', tx.gasUsed.toString());
-      } catch (e) {
-        this.log('submitSolution', e);
-      }
-    } else {
-      if (myTime.lt(otherTime)) {
-        this.log('Not going to start a dispute because the correct solution is older and has higher priority');
-        return;
-      }
-    }
-
     this.log('Different results, starting dispute...');
-    // TODO: do not clone everytime
-    const merkle = tree.clone().scale(executionDepth.toNumber());
-    this.disputes[merkle.root.hash] = { tree: merkle };
 
     try {
-      tx = await this.contract.dispute(
-        blockHash, solutionHash, merkle.root.hash,
-        { value: this.bondAmount }
-      );
+      const txData = {
+        to: this.contract.address,
+        value: this.bondAmount,
+        data: block.raw.replace('0x', '0xf240f7c3'),
+      };
+
+      let tx = await this.signer.sendTransaction(txData);
       tx = await tx.wait();
+
+      this.log('Bridge.dispute', tx.gasUsed.toString());
+      Utils.dumpLogs(tx.logs, this.contract.interface);
     } catch (e) {
       this.log('starting dispute', e);
-      delete this.disputes[merkle.root.hash];
     }
   }
 
-  async initDispute (blockHash, disputeId, pathRoot) {
-    let obj = this.disputes[pathRoot];
-
-    if (!obj) {
-      // find by blockHash
-      const block = await this.getBlockByHash(blockHash);
-      if (block && block.solution && block.solution.tree.root.hash === pathRoot) {
-        obj = block.solution;
-      }
-    }
-
-    if (!obj) {
-      this.log(`no solution for ${disputeId}(${pathRoot})`);
-      return;
-    }
-
-    const providerClone = new ethers.providers.JsonRpcProvider(this.rootProvider.connection.url);
-    const wallet = this.signer.connect(providerClone);
-    const contract = this.contract.connect(wallet);
-
-    if (this.debugMode) {
-      // poll faster
-      providerClone.pollingInterval = 30;
-    }
-
-    this.log('init ExecutionPoker');
-
-    delete this.disputes[pathRoot];
-    new ExecutionPoker(contract, disputeId, obj.tree);
-  }
-
-  async onNewDispute (blockHash, solverPath, challengerPath, disputeId) {
-    this.log('DISPUTE STARTED');
-    this.log({ blockHash, solverPath, challengerPath, disputeId });
-
-    // check if any of those paths are known to us
-    this.initDispute(blockHash, disputeId, solverPath);
-    this.initDispute(blockHash, disputeId, challengerPath);
+  async onNewDispute (blockHash) {
   }
 
   async getBlockByHash (hash) {
@@ -566,6 +514,7 @@ module.exports = class Bridge {
   }
 
   async getCode (addr) {
+    // TODO
     return DEFAULT_CONTRACT;
   }
 
@@ -580,20 +529,15 @@ module.exports = class Bridge {
       return false;
     }
 
-    const obj = await block.computeSolution(this);
-    const pathRoot = obj.tree.root.hash;
+    const solution = await block.computeSolution(this);
 
-    if (!(await this.contract.timeOfSubmission(obj.resultHash)).eq(0)) {
-      this.log('Bridge.submitSolution: solution exists already');
-    } else {
-      let tx = await this.contract.submitSolution(
-        blockHash, obj.resultHash, pathRoot, obj.tree.depth, obj.tree.computeResultProof(),
-        { value: this.bondAmount }
-      );
-      tx = await tx.wait();
+    let tx = await this.contract.submitSolution(
+      blockHash, solution.hash,
+      { value: this.bondAmount }
+    );
+    tx = await tx.wait();
 
-      this.log('Bridge.submitSolution', tx.gasUsed.toString());
-    }
+    this.log('Bridge.submitSolution', tx.gasUsed.toString());
 
     return true;
   }
@@ -605,8 +549,13 @@ module.exports = class Bridge {
       return false;
     }
 
-    const obj = block.solution;
-    let tx = await this.contract.finalizeSolution(blockHash, '0x' + obj.result);
+    if (!(await this.isCurrentBlock(block.number))) {
+      this.log('Bridge.finalizeSolution: already finalized');
+      return true;
+    }
+
+    this.log('Bridge.finalizeSolution', block.solution);
+    let tx = await this.contract.finalizeSolution(blockHash, block.solution.buffer);
     tx = await tx.wait();
     this.log('Bridge.finalizeSolution', tx.gasUsed.toString());
 
@@ -622,7 +571,7 @@ module.exports = class Bridge {
 
     const txData = {
       to: this.contract.address,
-      data: '0xb5b9cd7f' + block.raw.replace('0x64ef39ca', ''),
+      data: block.raw.replace('0x', '0xb5b9cd7f'),
     };
 
     let tx = await this.signer.sendTransaction(txData);
@@ -632,16 +581,5 @@ module.exports = class Bridge {
     Utils.dumpLogs(tx.logs, this.contract.interface);
 
     return true;
-  }
-
-  async getDepositProof () {
-    const blockNum = (await this.contract.currentBlock()).add(1).toNumber();
-    const block = await this.getBlockByNumber(blockNum);
-
-    if (!block) {
-      return [];
-    }
-
-    return block.depositProof;
   }
 };

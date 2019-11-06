@@ -4,9 +4,7 @@ const ethers = require('ethers');
 
 const BerryInventory = require('./BerryInventory.js');
 const NutBerryRuntime = require('./NutBerryRuntime.js');
-const VerifierRuntime = require('./VerifierRuntime.js');
 const Utils = require('./Utils.js');
-const { Merkelizer } = require('./../evm/utils');
 const { DEFAULT_CONTRACT } = require('./DefaultContract.js');
 const DEFAULT_CONTRACT_CODE = Utils.toUint8Array(DEFAULT_CONTRACT);
 
@@ -23,40 +21,22 @@ module.exports = class Block {
     // the blockNumber
     this.number = prevBlock ? prevBlock.number + 1 : 1;
     // the token inventory
-    this.inventory = prevBlock ? prevBlock.inventory.clone() : new BerryInventory();
+    this.inventory = prevBlock ? prevBlock.inventory.clone() : new BerryInventory(bridge.contract.address);
     // address > nonce mapping
     this.nonces = {};
     // txHash > tx mapping
     this.transactions = {};
     // ordered list of transaction hashes in this Block
     this.transactionHashes = [];
-    // a counter to keep track of the deposits we applied already
-    // TODO: do not use a counter, use something more robust
-    this.appliedDeposits = 0;
-    // array of addresses
-    this.depositProof = [];
 
     if (prevBlock) {
-      // copy nonces and apply new deposits since `prevBlock`
-      this.appliedDeposits = prevBlock.appliedDeposits;
-      this.applyDeposits(bridge);
+      // copy nonces since `prevBlock`
       this.nonces = Object.assign({}, prevBlock.nonces);
-    } else {
-      // apply all deposits
-      this.applyDeposits(bridge);
     }
   }
 
-  addDeposit (obj, bridge) {
-    this.inventory.addTokenFromBridge(obj, bridge.contract.address);
-    this.appliedDeposits += 1;
-  }
-
-  applyDeposits (bridge) {
-    for (let i = this.appliedDeposits; i < bridge.deposits.length; i++) {
-      this.inventory.addTokenFromBridge(bridge.deposits[i], bridge.contract.address);
-      this.appliedDeposits++;
-    }
+  addDeposit (obj) {
+    this.inventory.addToken(obj);
   }
 
   log (...args) {
@@ -66,16 +46,12 @@ module.exports = class Block {
   async refactor (prevBlock, bridge) {
     this.hash = null;
     this.solution = null;
-    this.depositProof = [];
 
     this.prevBlock = prevBlock;
     this.inventory = prevBlock.inventory.clone();
     this.number = prevBlock.number + 1;
 
     this.log(`Refactor:Started ${this.transactionHashes.length} transactions`);
-
-    this.appliedDeposits = prevBlock.appliedDeposits;
-    this.applyDeposits(bridge);
 
     this.nonces = Object.assign({}, prevBlock.nonces);
 
@@ -114,6 +90,7 @@ module.exports = class Block {
 
       // TODO: BigInt
       this.nonces[tx.from] = tx.nonce + 1;
+      this.inventory.trackNonce(tx.from, tx.nonce + 1);
       this.transactions[tx.hash] = tx;
       this.transactionHashes.push(tx.hash);
       return;
@@ -154,12 +131,43 @@ module.exports = class Block {
   async executeTx (tx) {
     const runtime = new NutBerryRuntime();
     const customEnvironment = this.inventory;
-    const code = DEFAULT_CONTRACT_CODE;
+    let code = DEFAULT_CONTRACT_CODE;
+
+    // TODO
+    const FUNC_SIG_BALANCE_OF = '0x70a08231';
+    const FUNC_SIG_APPROVE = '0x095ea7b3';
+    const FUNC_SIG_ALLOWANCE = '0xdd62ed3e';
+    const FUNC_SIG_TRANSFER = '0xa9059cbb';
+    const FUNC_SIG_TRANSFER_FROM = '0x23b872dd';
+    const FUNC_SIG_OWNER_OF = '0x6352211e';
+    const FUNC_SIG_GET_APPROVED = '0x081812fc';
+    const FUNC_SIG_READ_DATA = '0x37ebbc03';
+    const FUNC_SIG_WRITE_DATA = '0xa983d43f';
+    const FUNC_SIG_BREED = '0x451da9f9';
+
+    let caller;
+    if (
+      !tx.data.startsWith(FUNC_SIG_BALANCE_OF) &&
+      !tx.data.startsWith(FUNC_SIG_APPROVE) &&
+      !tx.data.startsWith(FUNC_SIG_ALLOWANCE) &&
+      !tx.data.startsWith(FUNC_SIG_TRANSFER) &&
+      !tx.data.startsWith(FUNC_SIG_TRANSFER_FROM) &&
+      !tx.data.startsWith(FUNC_SIG_OWNER_OF) &&
+      !tx.data.startsWith(FUNC_SIG_GET_APPROVED) &&
+      !tx.data.startsWith(FUNC_SIG_READ_DATA) &&
+      !tx.data.startsWith(FUNC_SIG_WRITE_DATA) &&
+      !tx.data.startsWith(FUNC_SIG_BREED)
+    ) {
+      code = await provider.getCode(tx.to);
+      code = Utils.toUint8Array(code);
+      caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
+    }
+
     const data = Utils.toUint8Array(tx.data);
     const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
     const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
     // TODO: copy / snapshot inventory
-    const state = await runtime.run({ address, origin, code, data, customEnvironment });
+    const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
 
     if (state.errno !== 0) {
       // TODO: revert state once we support arbitrary contracts
@@ -196,14 +204,7 @@ module.exports = class Block {
       tx = ethers.utils.parseTransaction(tx.raw);
       const nonce = tx.nonce;
 
-      this.log('Checking ' + tx.from + ':' + tx.nonce + ':' + tx.hash);
-      // TODO: use BigInt
-      const bridgeNonce = (await bridge.contract.getNonce(tx.from)).toNumber();
-
-      // Bad transaction
-      if (nonce < bridgeNonce) {
-        continue;
-      }
+      this.log('Preparing ' + tx.from + ':' + tx.nonce + ':' + tx.hash);
 
       const encoded = ethers.utils.serializeTransaction(
         {
@@ -224,6 +225,7 @@ module.exports = class Block {
     const txData = {
       to: bridge.contract.address,
       data: '0x25ceb4b2' + rawData,
+      value: bridge.bondAmount,
     };
 
     // post data
@@ -240,8 +242,7 @@ module.exports = class Block {
       }
     );
 
-    const blockRaw = '0x64ef39ca' + rawData;
-    const blockHash = ethers.utils.keccak256(blockRaw);
+    const blockHash = ethers.utils.keccak256('0x' + rawData);
 
     return blockHash;
   }
@@ -257,71 +258,34 @@ module.exports = class Block {
       return this.solution;
     }
 
-    const verifierRuntime = new VerifierRuntime();
-    const bridgeAddr = bridge.contract.address.toLowerCase();
-    // TODO: cache the code
-    const code = Utils.toUint8Array(await bridge.contract.provider.getCode(bridgeAddr));
-    const myAddr = bridge.signer.address.toLowerCase();
-    const address = Buffer.from(bridgeAddr.replace('0x', ''), 'hex');
-    const origin = Buffer.from(myAddr.replace('0x', ''), 'hex');
-    const callData = Utils.toUint8Array(this.raw);
+    this.log(this.inventory.storageKeys);
 
-    const state = await verifierRuntime.run(
-      {
-        address,
-        origin,
-        code,
-        data: callData,
-        customEnvironment: bridge.contract,
-      }
-    );
-
-    if (state.errno === 0xff) {
-      // TODO: handle this better
-      throw new Error('state.errno === 0xff - likely that a call to the root rpc provider failed');
+    const storageKeys = this.inventory.storageKeys;
+    const keys = Object.keys(storageKeys);
+    let buf = Buffer.alloc(0);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const val = storageKeys[k];
+      const n = Buffer.from(k.replace('0x', '') + val.replace('0x', ''), 'hex');
+      buf = Buffer.concat([buf, n]);
     }
-
-    let resultStr = state.returnValue.toString('hex').replace('0x', '');
 
     if (doItWrong) {
       this.log('BadNodeMode!');
 
-      let inv = false;
-      for (let i = state.steps.length - 1; i > 0; i--) {
-        const step = state.steps[i];
-
-        // find CALLDATACOPY
-        if (step.callDataReadLow !== -1 && step.memWriteLow !== -1) {
-          step.pc += 1;
-          inv = true;
-          break;
-        }
-      }
-      if (!inv) {
-        state.steps.shift();
-      }
-
-      resultStr = resultStr + resultStr;
-      state.steps[state.steps.length - 1].returnData = Buffer.from(resultStr, 'hex');
+      buf = Buffer.alloc(64);
+      buf[63] = 1;
     }
 
-    const resultHash = ethers.utils.solidityKeccak256(['bytes'], ['0x' + resultStr]);
-    const tree = new Merkelizer().run(state.steps, code, callData);
-
-    this.log('==================================================================================');
-    this.log(
-      {
-        depth: tree.depth,
-        result: resultStr,
-        resultHash,
-        pathRoot: tree.root.hash,
-        errno: state.errno,
-      }
-    );
-    this.log('==================================================================================');
-
     // cache the result
-    this.solution = { tree, result: resultStr, resultHash, errno: state.errno };
+    this.solution = {
+      buffer: buf,
+      hash: ethers.utils.solidityKeccak256(['bytes'], [buf]),
+    };
+
+    this.log('==================================================================================');
+    this.log(this.solution);
+    this.log('==================================================================================');
 
     return this.solution;
   }

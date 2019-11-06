@@ -3,15 +3,17 @@
 const Inventory = require('./Inventory.js');
 
 module.exports = class BerryInventory extends Inventory {
-  constructor () {
+  constructor (bridgeAddr) {
     super();
+
+    if (bridgeAddr) {
+      this._bridgeAddr = bridgeAddr.toLowerCase();
+    }
   }
 
-  // Used for adding deposits into our inventory.
-  addTokenFromBridge (data, bridgeAddr) {
-    const obj = Object.assign({}, data);
-    obj.owner = bridgeAddr;
-    this.addToken(obj);
-    this.addAllowance(obj.address, obj.owner, data.owner, obj.value);
+  clone () {
+    const ret = super.clone();
+    ret._bridgeAddr = this._bridgeAddr;
+    return ret;
   }
 };

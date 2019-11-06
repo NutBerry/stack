@@ -1,6 +1,7 @@
 'use strict';
 
 const http = require('http');
+const Socket = require('net').Socket;
 const ethers = require('ethers');
 const assert = require('assert');
 
@@ -15,6 +16,7 @@ const ERC20 = require('./../build/contracts/ERC20.json');
 const ERC721 = require('./../build/contracts/ERC721.json');
 const ERC1948 = require('./../build/contracts/ERC1948.json');
 const ERC1949 = require('./../build/contracts/ERC1949.json');
+const TestContract = require('./../build/contracts/TestContract.json');
 
 const NODE_ADDR = '0xDf08F82De32B8d460adbE8D72043E3a7e25A3B39';
 const PRIV_KEY_ALICE = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501203';
@@ -42,6 +44,7 @@ describe('Bridge/RPC', async function () {
   let walletAlice;
   let walletBob;
   let walletCharlie;
+  let testContract;
 
   async function erc20Transfer (...args) {
     const tx = await erc20.transfer(...args);
@@ -110,33 +113,51 @@ describe('Bridge/RPC', async function () {
     erc1949Root = await _factory.deploy('ERC1949 Token', 'ERC1949');
     await erc1949Root.deployTransaction.wait();
     erc1949 = new ethers.Contract(erc1949Root.address, ERC1949_ABI, walletAlice);
+
+    _factory = new ethers.ContractFactory(
+      TestContract.abi,
+      TestContract.bytecode,
+      rootWalletAlice,
+    );
+    testContract = await _factory.deploy();
+    await testContract.deployTransaction.wait();
+    testContract = new ethers.Contract(testContract.address, TestContract.abi, walletAlice);
   });
 
   function doRound () {
     it('Alice: ERC20 deposit', async () => {
       const value = '0xffff';
+      let balance = await erc20.balanceOf(walletAlice.address);
+
+      assert.equal(balance.toString(), '0', 'balance');
+
       let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
       tx = await tx.wait();
-      let depositProof = await provider.send('getDepositProof', []);
-      tx = await bridge.deposit(erc20Root.address, value, depositProof);
+      tx = await bridge.deposit(erc20Root.address, value);
       tx = await tx.wait();
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      let balance = await erc20.balanceOf(walletAlice.address);
-      let allowance = await erc20.allowance(bridge.address, walletAlice.address);
-
-      assert.equal(balance.toString(), '0', 'balance');
-      assert.equal(allowance.toHexString(), value, 'allowance');
-
-      tx = await erc20TransferFrom(bridge.address, walletAlice.address, value);
-      tx = await tx.wait();
-
       balance = await erc20.balanceOf(walletAlice.address);
-      allowance = await erc20.allowance(bridge.address, walletAlice.address);
-
       assert.equal(balance.toHexString(), value, 'balance');
-      assert.equal(allowance.toString(), '0', 'allowance');
+    });
+
+    it('TestContract.test', async () => {
+      let tx = await erc20.approve(testContract.address, '0xff');
+      tx = await tx.wait();
+      tx = await testContract.test(erc20.address, [], []);
+      tx = await tx.wait();
+    });
+
+    it('TestContract.testERC20', async () => {
+      const balanceBefore = await erc20.balanceOf(walletAlice.address);
+      let tx = await erc20.approve(testContract.address, '0xff');
+      tx = await tx.wait();
+      tx = await testContract.testERC20(erc20.address, walletAlice.address, testContract.address, 0);
+      tx = await tx.wait();
+      const balanceAfter = await erc20.balanceOf(walletAlice.address);
+
+      assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() - 1, 'balance of Alice');
     });
 
     it('unknown method', async () => {
@@ -253,9 +274,11 @@ describe('Bridge/RPC', async function () {
   }
 
   async function doExit () {
-    const value = 0xffbf;
+    const value = '0xffbe';
     const balanceBefore = await erc20Root.balanceOf(walletAlice.address);
     const exitBalance = await bridge.getExitValue(erc20Root.address, walletAlice.address);
+
+    assert.equal(exitBalance.toHexString(), value, 'exitBalance');
 
     let tx = await bridge.withdraw(erc20Root.address, value);
     tx = await tx.wait();
@@ -279,9 +302,13 @@ describe('Bridge/RPC', async function () {
   describe('Round 1 - submitBlock & directReplay', async () => {
     doRound();
 
-    it('submitBlock', async () => {
-      const blockHash = await provider.send('debug_submitBlock', []);
+    let blockHash;
 
+    it('submitBlock', async () => {
+      blockHash = await provider.send('debug_submitBlock', []);
+    });
+
+    it('directReplay', async () => {
       let found = false;
       while (!found) {
         found = await provider.send('debug_directReplay', [blockHash]);
@@ -300,16 +327,22 @@ describe('Bridge/RPC', async function () {
   describe('Round 2 - submitBlock > submitSolution > finalizeSolution', async () => {
     doRound();
 
-    it('submitBlock', async () => {
-      const blockHash = await provider.send('debug_submitBlock', []);
+    let blockHash;
 
+    it('submitBlock', async () => {
+      blockHash = await provider.send('debug_submitBlock', []);
+    });
+
+    it('submitSolution', async () => {
       let found = false;
       while (!found) {
         found = await provider.send('debug_submitSolution', [blockHash]);
       }
+    });
 
-      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+    it('finalizeSolution', async () => {
       const balanceBefore = await rootProvider.getBalance(NODE_ADDR);
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
       await provider.send('debug_finalizeSolution', [blockHash]);
       await produceBlocks(1);
       const balanceAfter = await rootProvider.getBalance(NODE_ADDR);
@@ -345,24 +378,9 @@ describe('Bridge/RPC', async function () {
 
       assert.ok(solverWon, 'solver should win the dispute');
 
-      const value = '0xffff';
-      let depositProof = await provider.send('getDepositProof', []);
-
-      try {
-        let tx = await bridge.deposit(erc20Root.address, value, depositProof);
-        tx = await tx.wait();
-        assert.ok(false, 'deposit should fail');
-      } catch (e) {
-      }
-
       // finalize block
       await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
       await provider.send('debug_finalizeSolution', [blockHash]);
-
-      // deposit should work now
-      depositProof = await provider.send('getDepositProof', []);
-      let tx = await bridge.deposit(erc20Root.address, value, depositProof);
-      tx = await tx.wait();
     });
   });
 
@@ -416,21 +434,16 @@ describe('Bridge/RPC', async function () {
 
     it('request too large - wrong content-length header', async () => {
       return new Promise((resolve, reject) => {
-        const req = http.request(
-          {
-            hostname: 'localhost',
-            port: 8000,
-            method: 'POST',
-            path: '/',
-            headers: {
-              'content-length': 1,
-            },
-          }
-        );
+        const sock = new Socket();
+        const req = sock.connect(8000, 'localhost');
         req.on('error', function (e) {
           assert.ok(e, 'should abort connection');
           resolve();
         });
+        req.on('response', function (resp) {
+          reject();
+        });
+        req.write('POST / HTTP/1.0\r\ncontent-length: 1\r\n\r\n');
         req.end(Buffer.alloc((8 << 20) + 1));
       });
     });

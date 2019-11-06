@@ -18,6 +18,7 @@ const GENESIS = {
     'byzantiumBlock': 0,
     'constantinopleBlock': 0,
     'petersburgBlock': 0,
+    'istanbulBlock': 0,
     'clique': {
       'period': 0,
       'epoch': 30000,
@@ -156,6 +157,7 @@ async function fetch (obj) {
       '--rpc',
       `--rpcport=${process.env.RPC_PORT}`,
       '--rpcapi=eth,net,web3,debug,personal,miner',
+      '--allow-insecure-unlock',
     ];
 
     spawnSync('rm', ['-rf', '/tmp/geth']);

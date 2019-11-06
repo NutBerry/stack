@@ -43,7 +43,7 @@ module.exports = class Server {
       req.on('data', function (buf) {
         body = Buffer.concat([body, buf]);
 
-        if (body.length > 8 << 20) {
+        if (body.length > len) {
           resp.abort();
         }
       });

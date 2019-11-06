@@ -5,31 +5,31 @@ import './InventoryStorage.sol';
 
 contract Inventory is InventoryStorage {
 
-  function balanceOf (
+  function _balanceOf (
     address target,
     address owner
-  ) internal returns (bytes memory) {
+  ) internal view returns (uint256) {
     uint256 val = getERC20(target, owner);
 
-    return abi.encodePacked(val);
+    return val;
   }
 
-  function allowance (
+  function _allowance (
     address target,
     address owner,
     address spender
-  ) internal returns (bytes memory) {
+  ) internal view returns (uint256) {
     uint256 val = getAllowance(target, owner, spender);
 
-    return abi.encodePacked(val);
+    return val;
   }
 
-  function transfer (
+  function _transfer (
     address msgSender,
     address target,
     address to,
     uint256 value
-  ) internal returns (bytes memory) {
+  ) internal returns (bool) {
     uint256 senderValue = getERC20(target, msgSender);
 
     //if (isERC20) {
@@ -38,7 +38,7 @@ contract Inventory is InventoryStorage {
       uint256 want = value;
       // not enough
       if (has < want || want == 0) {
-        return '';
+        return false;
       }
 
       senderValue = has - want;
@@ -52,26 +52,26 @@ contract Inventory is InventoryStorage {
         incrementExit(target, msgSender, want);
       }
 
-      return abi.encodePacked(true);
+      return true;
     }
 
-    return '';
+    return false;
   }
 
-  function transferFrom (
+  function _transferFrom (
     address msgSender,
     address target,
     address from,
     address to,
     uint256 tokenId
-  ) internal returns (bytes memory) {
+  ) internal returns (bool) {
     uint256 senderValue;
 
     //if (isERC20) {
     if (true) {
-      uint256 allowance = getAllowance(target, from, msgSender);
+      uint256 allowed = getAllowance(target, from, msgSender);
       if (from == address(this)) {
-        senderValue = allowance;
+        senderValue = allowed;
       } else {
         senderValue = getERC20(target, from);
       }
@@ -80,12 +80,12 @@ contract Inventory is InventoryStorage {
       uint256 want = tokenId;
 
       // not enough
-      if (has < want || (want > allowance && from != msgSender) || want == 0) {
-        return '';
+      if (has < want || (want > allowed && from != msgSender) || want == 0) {
+        return false;
       }
 
       if (from != msgSender) {
-        setAllowance(target, from, msgSender, allowance - want);
+        setAllowance(target, from, msgSender, allowed - want);
       }
       senderValue = has - want;
       setERC20(target, from, senderValue);
@@ -99,9 +99,9 @@ contract Inventory is InventoryStorage {
         incrementExit(target, from, want);
       }
 
-      return abi.encodePacked(true);
+      return true;
     }
 
-    return '';
+    return false;
   }
 }

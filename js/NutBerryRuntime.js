@@ -3,6 +3,7 @@
 const { EVMRuntime, BN } = require('../evm/utils');
 
 const FUNC_SIG_BALANCE_OF = '70a08231';
+const FUNC_SIG_APPROVE = '095ea7b3';
 const FUNC_SIG_ALLOWANCE = 'dd62ed3e';
 const FUNC_SIG_TRANSFER = 'a9059cbb';
 const FUNC_SIG_TRANSFER_FROM = '23b872dd';
@@ -44,6 +45,14 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
       const spender = '0x' + data.substring(offset += 24, offset += 40);
 
       return inventory.allowance(target, owner, spender);
+    }
+
+    if (funcSig === FUNC_SIG_APPROVE) {
+      // TODO
+      const spender = '0x' + data.substring(offset += 24, offset += 40);
+      const value = '0x' + data.substring(offset, offset += 64);
+
+      return inventory.setAllowance(target, msgSender, spender, value);
     }
 
     if (funcSig === FUNC_SIG_TRANSFER) {

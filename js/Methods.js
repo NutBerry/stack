@@ -31,10 +31,6 @@ module.exports = class Methods {
     return bridge.contract.address;
   }
 
-  static 'getDepositProof' (obj, bridge) {
-    return bridge.getDepositProof();
-  }
-
   static 'net_version' (obj, bridge) {
     return bridge.chainId;
   }
