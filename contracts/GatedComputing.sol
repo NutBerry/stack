@@ -138,7 +138,7 @@ contract GatedComputing {
         }
       }
 
-      let offset := 1024
+      let offset := 2048
       for { let i := 0 } lt(i, calldatasize()) { i := add(i, 1) } {
         let opcode := byte(returndatasize(), calldataload(i))
         let skip := 0
@@ -155,8 +155,10 @@ contract GatedComputing {
         }
         // JUMP
         if eq(opcode, 86) {
+          // PUSH1
           mstore8(offset, 96)
-          mstore8(add(offset, 1), 3)
+          // trampoline
+          mstore8(add(offset, 1), 4)
           offset := add(offset, 2)
         }
         // JUMPI
@@ -165,8 +167,8 @@ contract GatedComputing {
           mstore8(offset, 144)
           // PUSH 1
           mstore8(add(offset, 1), 96)
-          // 3
-          mstore8(add(offset, 2), 3)
+          // 4
+          mstore8(add(offset, 2), 4)
           // JUMPI
           mstore8(add(offset, 3), 87)
           // POP
@@ -178,9 +180,9 @@ contract GatedComputing {
         // JUMPDEST
         if eq(opcode, 91) {
           let count := mload(0)
-          let o := add(32, mul(count, 64))
-          mstore(o, i)
-          mstore(add(o, 32), offset)
+          let o := add(32, mul(count, 4))
+          let val := or(shl(240, i), shl(224, sub(offset, 2048)))
+          mstore(o, val)
           mstore(0, add(count, 1))
 
           // JUMPDEST
@@ -199,55 +201,63 @@ contract GatedComputing {
 
       // TODO: check boundaries
       let count := mload(0)
-      // we add size: count * instructions + 6
-      let plusSize := add(mul(count, 7), 6)
-      let ptr := sub(1024, plusSize)
+      // we add size: count * instructions + 7
+      let plusSize := add(mul(count, 9), 7)
+      let ptr := sub(2048, plusSize)
       let deployPtr := sub(ptr, 11)
       // 11 bytes - deploy code
       // PUSH1 11 CODESIZE SUB DUP1 PUSH1 11 MSIZE CODECOPY CALLDATASIZE RETURN
       mstore(deployPtr, 0x600b380380600b593936f3000000000000000000000000000000000000000000)
-      // 6 bytes
-      // PUSH1 00 JUMP JUMPDEST
-      mstore(ptr, 0x6000565b00000000000000000000000000000000000000000000000000000000)
-      // fix destination of first jump (PUSH1 00) above
-      mstore8(add(ptr, 1), sub(plusSize, 1))
+      // 7 bytes (with INVALID and JUMPDEST below)
+      // PUSH2 0000 JUMP JUMPDEST
+      mstore(ptr, 0x610000565b000000000000000000000000000000000000000000000000000000)
+      // fix destination of first jump (PUSH2 0000) above
+      mstore8(add(ptr, 1), shr(8, sub(plusSize, 1)))
+      mstore8(add(ptr, 2), sub(plusSize, 1))
       // add INVALID if we fall-through the jump handler
       mstore8(add(ptr, sub(plusSize, 2)), 0xfe)
       // JUMPDEST after the jump handler
       mstore8(add(ptr, sub(plusSize, 1)), 0x5b)
 
-      ptr := add(ptr, 4)
+      ptr := add(ptr, 5)
       for { let x := 0 } lt(x, count) { x := add(x, 1) } {
-        let o := add(32, mul(x, 64))
-        let oldOffset := mload(o)
-        let newOffset := mload(add(o, 32))
+        let o := mload(add(32, mul(x, 4)))
+        let oldOffset := shr(240, o)
+        let newOffset := and(shr(224, o), 0xffff)
         // DUP1
         mstore8(ptr, 0x80)
         ptr := add(ptr, 1)
-        // TODO: check if offsets fits into one byte.
-        // or always use PUSH2
-        // PUSH1
-        mstore8(ptr, 0x60)
+
+        // PUSH2
+        mstore8(ptr, 0x61)
         ptr := add(ptr, 1)
         // the old (original) offset
+        mstore8(ptr, shr(8, oldOffset))
+        ptr := add(ptr, 1)
         mstore8(ptr, oldOffset)
         ptr := add(ptr, 1)
+
         // EQ
         mstore8(ptr, 0x14)
         ptr := add(ptr, 1)
-        // PUSH1
-        mstore8(ptr, 0x60)
+
+        // PUSH2
+        mstore8(ptr, 0x61)
         ptr := add(ptr, 1)
         // the new offset
-        mstore8(ptr, add(newOffset, plusSize))
+        let tmp := add(newOffset, plusSize)
+        mstore8(ptr, shr(8, tmp))
         ptr := add(ptr, 1)
+        mstore8(ptr, tmp)
+        ptr := add(ptr, 1)
+
         // JUMPI
         mstore8(ptr, 0x57)
         ptr := add(ptr, 1)
       }
 
-      // the size of the deployed bytecode (offset - 1024) + plusSize, and +11 for the deploy code
-      let codeSize := add(sub(offset, 1024), add(plusSize, 11))
+      // the size of the deployed bytecode (offset - 2048) + plusSize, and +11 for the deploy code
+      let codeSize := add(sub(offset, 2048), add(plusSize, 11))
       let addr := create(0, deployPtr, codeSize)
       mstore(0, addr)
       return(12, 20)
