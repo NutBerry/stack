@@ -53,4 +53,8 @@ contract TestContract {
     ERC1949 token = ERC1949(tokenAddr);
     token.breed(tokenId, bob, bytes32(uint256(0x0a)));
   }
+
+  function ping () public returns (address) {
+    return address(this);
+  }
 }

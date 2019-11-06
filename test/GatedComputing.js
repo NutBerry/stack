@@ -4,13 +4,14 @@ const ethers = require('ethers');
 const assert = require('assert');
 
 const GatedComputing = require('./../build/contracts/GatedComputing.json');
-const TestContract = require('./../build/contracts/TestGatedComputing.json');
+const TestGatedComputing = require('./../build/contracts/TestGatedComputing.json');
+const TestContract = require('./../build/contracts/TestContract.json');
 const Runtime = require('./../js/NutBerryRuntime.js');
 
 describe('GatedComputing', async function () {
   const provider = new ethers.providers.JsonRpcProvider(`http://localhost:${process.env.RPC_PORT}`);
 
-  function round (i, bytecode) {
+  function round (i, bytecode, callData) {
     it(`Round ${i} patching jumps and simple opcodes should work`, async () => {
       const wallet = await provider.getSigner(0);
       const _factory = new ethers.ContractFactory(
@@ -40,7 +41,7 @@ describe('GatedComputing', async function () {
           origin: Buffer.alloc(20).fill(0xfa),
           caller: Buffer.alloc(20).fill(0xfa),
           address: Buffer.alloc(20).fill(0xfa),
-          data: [],
+          data: ethers.utils.arrayify(callData || '0x'),
         }
       );
 
@@ -51,8 +52,12 @@ describe('GatedComputing', async function () {
     });
   }
 
-  let bytecode = TestContract.deployedBytecode;
+  let bytecode = TestGatedComputing.deployedBytecode;
   round(1, bytecode);
+
   bytecode = bytecode + Buffer.alloc(6000).fill(0xff).toString('hex');
   round(2, bytecode);
+
+  bytecode = TestContract.deployedBytecode;
+  round(3, bytecode, '0x5c36b186');
 });
