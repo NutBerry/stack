@@ -5,6 +5,8 @@
 # NutBerry - Offroading Ethereum Transactions
 `A NutBerry a day keeps the sunshine your way.`
 
+![Meme](https://nutberry.github.io/assets/minion.jpg)
+
 The goal of this project is a permissionless layer-2 solution with support for stateful smart contracts.
 The design is similiar to what we generally call rollups but it intentionally has the same transaction encoding
 and signing scheme as Ethereum transactions to be one-to-one compatible with the existing ecosystem.
