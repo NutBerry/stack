@@ -72,9 +72,9 @@ Optional:
 
 # Documentation
 
-...is very thin right now. I'm writing a system description document soon.
-In the meantime, taking a look at `contracts/Bridge.sol` and `tests/Bridge.js` will give you an idea
-how things fit together.
+The [System Description Document](https://github.com/NutBerry/stack/blob/master/docs/SystemDescriptionDocument.md).
+
+Additionaly, taking a look at `contracts/Bridge.sol` and `tests/Bridge.js` will give you an idea how things fit together.
 
 # Communication
 
