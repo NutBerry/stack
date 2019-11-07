@@ -36,7 +36,7 @@ Additionally, `chainId` is currently fixed to zero.
 
 Transactions inside a Block must be in the unsigned form and must have 7 fields, in this order:
 
-- <length of transaction>
+- `length of transaction`
 - `nonce`
 - `gasPrice`
 - `gasLimit`
@@ -46,7 +46,7 @@ Transactions inside a Block must be in the unsigned form and must have 7 fields,
 
 After the RLP encoded unsigned transaction comes the 65 bytes signature:
 
-- `v` fixed to 1 byte - TODO: this can be larger if we support `chainId`
+- `v` fixed to 1 byte - This can be larger if we support `chainId`.
 - `r` 32 bytes
 - `s` 32 bytes
 
@@ -144,7 +144,10 @@ If the solution can be finalized then:
 The Bridge applies all the storage `key`-`value`'s and moves to the next pending Block.
 
 ## Direct replay
+`function replay () public`
+
 Additonally, any block can be finalized directly for the currently pending block.
 If so, the behaviour is the same as in `finalizeSolution` except all open solutions and challenges
 are cancelled and the bonds are returned to the their owners.
 
+The block needs to be appened to the transaction's `data` without the `0x64ef39ca` function signature.
