@@ -25,24 +25,40 @@ module.exports = class Server {
     console.log('Server:', ...args);
   }
 
-  // TODO: try : catch for bad requests
   onRequest (req, resp) {
+    resp.sendDate = false;
+    resp.setHeader('Access-Control-Allow-Origin', '*');
+
     if (req.method === 'POST') {
+      const len = parseInt(req.headers['content-length']);
+      // should have content-length set and not over 8 Mbytes
+      if (!len || len > 8 << 20) {
+        resp.writeHead(413);
+        resp.end();
+        return;
+      }
+
       const self = this;
       let body = Buffer.alloc(0);
       req.on('data', function (buf) {
         body = Buffer.concat([body, buf]);
+
+        if (body.length > 8 << 20) {
+          resp.abort();
+        }
       });
-      req.on('end', function () {
-        self.onPost(req, resp, JSON.parse(body.toString()));
+      req.on('end', async function () {
+        try {
+          await self.onPost(req, resp, JSON.parse(body.toString()));
+        } catch (e) {
+          resp.writeHead(400);
+          resp.end();
+        }
       });
       return;
     }
 
-    this.onGet(req, resp);
-  }
-
-  async onGet (req, resp) {
+    resp.setHeader('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, X-Requested-With');
     resp.end();
   }
 
