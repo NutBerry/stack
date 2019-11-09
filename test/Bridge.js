@@ -1,5 +1,6 @@
 'use strict';
 
+const http = require('http');
 const ethers = require('ethers');
 const assert = require('assert');
 
@@ -362,6 +363,76 @@ describe('Bridge/RPC', async function () {
       depositProof = await provider.send('getDepositProof', []);
       let tx = await bridge.deposit(erc20Root.address, value, depositProof);
       tx = await tx.wait();
+    });
+  });
+
+  describe('RPC', () => {
+    it('bad request', async () => {
+      return new Promise((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: 'localhost',
+            port: 8000,
+            method: 'POST',
+            path: '/',
+            headers: {
+              'content-length': 1,
+            },
+          }
+        );
+        req.on('error', reject);
+        req.on('response', function (resp) {
+          assert.equal(resp.statusCode, 400, 'should return 400');
+          resolve();
+        });
+
+        req.end('1');
+      });
+    });
+
+    it('request too large', async () => {
+      return new Promise((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: 'localhost',
+            port: 8000,
+            method: 'POST',
+            path: '/',
+            headers: {
+              'content-length': (8 << 20) + 1,
+            },
+          }
+        );
+        // may also abort first if the connection
+        // closed before we had the chance to upload everything
+        req.on('error', resolve);
+        req.on('response', function (resp) {
+          assert.equal(resp.statusCode, 413, 'should return 413');
+          resolve();
+        });
+        req.end(Buffer.alloc((8 << 20) + 1));
+      });
+    });
+
+    it('request too large - wrong content-length header', async () => {
+      return new Promise((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: 'localhost',
+            port: 8000,
+            method: 'POST',
+            path: '/',
+            headers: {
+              'content-length': 1,
+            },
+          }
+        );
+        req.on('error', function (e) {
+          assert.ok(e, 'should abort connection');
+          resolve();
+        });
+        req.end(Buffer.alloc((8 << 20) + 1));
+      });
     });
   });
 });

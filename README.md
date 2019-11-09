@@ -16,7 +16,7 @@ run smart contracts on a permissionless / trustless layer 2 solution.
 Though, the runtime has some restrictions like not be able to call other contracts.
 That is; a state-minimized EVM or LEVM - Lean Ethereum Virtual Machine.
 
-Data availibilty is fully archieved on the root-chain and the contract is able verify and replay
+Data availibilty is fully achieved on the root-chain and the contract is able verify and replay
 all transactions either through directly finalizing a Block of transactions on-chain or via
 an interactive computation verification game to offload the computation and to enforce correctness on-chain for any given block.
 
