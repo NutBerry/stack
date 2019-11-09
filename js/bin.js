@@ -18,6 +18,9 @@ const rpcUrl = process.env.ROOT_RPC_URL;
 
   process.on('uncaughtException', onException);
   process.on('unhandledRejection', onException);
+  process.on('SIGTERM', function () {
+    process.exit(0);
+  });
 
   const config = {
     host: host,
