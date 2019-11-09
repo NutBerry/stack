@@ -403,16 +403,14 @@ describe('Bridge/RPC', async function () {
             },
           }
         );
-        //req.on('error', reject);
+        // may also abort first if the connection
+        // closed before we had the chance to upload everything
+        req.on('error', resolve);
         req.on('response', function (resp) {
           assert.equal(resp.statusCode, 413, 'should return 413');
           resolve();
         });
-        try {
-          req.end(Buffer.alloc((8 << 20) + 1));
-        } catch (e) {
-          console.log(e);
-        }
+        req.end(Buffer.alloc((8 << 20) + 1));
       });
     });
 
@@ -433,12 +431,7 @@ describe('Bridge/RPC', async function () {
           assert.ok(e, 'should abort connection');
           resolve();
         });
-        //req.on('response', reject);
-        try {
-          req.end(Buffer.alloc((8 << 20) + 1));
-        } catch (e) {
-          console.log(e);
-        }
+        req.end(Buffer.alloc((8 << 20) + 1));
       });
     });
   });
