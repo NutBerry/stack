@@ -5,8 +5,6 @@ const fs = require('fs');
 const spawn = require('child_process').spawn;
 const ethers = require('ethers');
 
-const { DEFAULT_CONTRACT_CODE } = require('./DefaultContract.js');
-
 const privKey = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501200';
 const rpcUrl = `http://localhost:${process.env.RPC_PORT}`;
 const rootProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
@@ -19,9 +17,10 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
   }
 
   async function deployBridge (wallet) {
+    const GatedComputing = require('./../build/contracts/GatedComputing.json');
     let _factory = new ethers.ContractFactory(
       [],
-      DEFAULT_CONTRACT_CODE,
+      GatedComputing.bytecode,
       wallet
     );
     let contract = await _factory.deploy();

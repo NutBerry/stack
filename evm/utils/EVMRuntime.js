@@ -137,7 +137,7 @@ module.exports = class EVMRuntime {
       code: obj.code,
       callData: obj.data,
       // caller & origin are the same in our case
-      caller: obj.origin || ADDRESS_ZERO_BUF,
+      caller: obj.caller || obj.origin || ADDRESS_ZERO_BUF,
       origin: obj.origin || ADDRESS_ZERO_BUF,
       address: obj.address || ADDRESS_ZERO_BUF,
       memory: [],
@@ -770,7 +770,10 @@ module.exports = class EVMRuntime {
   }
 
   async handleLOG (runState) {
-    throw new VmError(ERROR.INSTRUCTION_NOT_SUPPORTED);
+    const val = (runState.opCode - 0xa0) + 2;
+
+    // TODO: support for logs
+    runState.stack.splice(runState.stack.length - val);
   }
 
   async handleCREATE (runState) {

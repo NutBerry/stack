@@ -58,10 +58,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     let tx = await erc20Root.approve(bridge.address, amount);
     tx = await tx.wait();
 
-    const depositProof = await provider.send('getDepositProof', []);
-    console.log({ depositProof });
-
-    tx = await bridge.deposit(erc20Root.address, amount, depositProof);
+    tx = await bridge.deposit(erc20Root.address, amount);
     tx = await tx.wait();
 
     console.log(tx);

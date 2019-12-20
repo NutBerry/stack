@@ -1,14 +1,24 @@
+pragma solidity ^0.5.2;
 
+import '../LEVM.sol';
 
-contract TestGatedComputing {
-  function () external {
+contract TestGatedComputing is LEVM {
+  function addToken (address target, address owner, uint256 value) public {
+    setERC20(target, owner, value);
+  }
+
+  function addAllowance (address target, address from, address spender, uint256 value) public {
+    setAllowance(target, from, spender, value);
+  }
+
+  function simple () public {
     uint256 val;
     assembly {
       function foo () {
+        log0(0, 0)
       }
-
-      val := address()
       foo()
+      val := address()
     }
     if (val != 0) {
       revert();
@@ -17,6 +27,178 @@ contract TestGatedComputing {
     assembly {
       mstore(0, address())
       return(0, 32)
+    }
+  }
+
+  function testCall (address target, bytes memory callData) public {
+    assembly {
+      // TO
+      sstore(0xaa, 0)
+      // call the patched contract
+      let success := callcode(gas(), target, 0, add(callData, 32), mload(callData), 0,  32)
+      log1(0, 0, mload(0))
+      log1(0, 0, success)
+      return(0, 32)
+    }
+  }
+
+  function call (address target, bytes memory callData) public {
+    assembly {
+      // TO
+      sstore(0xaa, address())
+      // call the patched contract
+      let success := callcode(gas(), target, 0, add(callData, 32), mload(callData), 0,  32)
+      log1(0, 0, mload(0))
+      log1(0, 0, success)
+      return(0, 32)
+    }
+  }
+
+  function deployAndCall (address gated, address target, bytes memory callData) public {
+    assembly {
+      // store our address to be used by the patched contract
+      // TO
+      sstore(0xaa, address())
+      // FROM
+      // sstore(0xcc, from)
+    }
+
+    bool success = _deployAndCall(gated, target, callData);
+    assembly {
+      log1(0, 0, success)
+    }
+  }
+
+  function BALANCE () public {
+    assembly {
+      let val := balance(address())
+      log1(0, 0, val)
+    }
+  }
+
+  function CODESIZE () public {
+    assembly {
+      let val := codesize()
+      log1(0, 0, val)
+    }
+  }
+
+  function CODECOPY () public {
+    assembly {
+      codecopy(0, 0, 32)
+      log1(0, 0, mload(0))
+    }
+  }
+
+  function GASPRICE () public {
+    assembly {
+      let val := gasprice()
+      log1(0, 0, val)
+    }
+  }
+
+  function EXTCODECOPY () public {
+    assembly {
+      extcodecopy(address(), 0, 0, 32)
+      log1(0, 0, mload(0))
+    }
+  }
+
+  function EXTCODEHASH () public {
+    assembly {
+      let val := extcodehash(address())
+      log1(0, 0, val)
+    }
+  }
+
+  function BLOCKHASH () public {
+    assembly {
+      let val := blockhash(1)
+      log1(0, 0, val)
+    }
+  }
+
+  function COINBASE () public {
+    assembly {
+      let val := coinbase()
+      log1(0, 0, val)
+    }
+  }
+
+  function TIMESTAMP () public {
+    assembly {
+      let val := timestamp()
+      log1(0, 0, val)
+    }
+  }
+
+  function NUMBER () public {
+    assembly {
+      let val := number()
+      log1(0, 0, val)
+    }
+  }
+
+  function DIFFICULTY () public {
+    assembly {
+      let val := difficulty()
+      log1(0, 0, val)
+    }
+  }
+
+  function GASLIMIT () public {
+    assembly {
+      let val := gaslimit()
+      log1(0, 0, val)
+    }
+  }
+
+  function SLOAD () public {
+    assembly {
+      let val := sload(0)
+      log1(0, 0, val)
+    }
+  }
+
+  function SSTORE () public {
+    assembly {
+      sstore(0, 1)
+      log1(0, 0, 1)
+    }
+  }
+
+  function CREATE () public {
+    assembly {
+      let val := create(0, 0, 1)
+      log1(0, 0, val)
+    }
+  }
+
+  function CALLCODE () public {
+    assembly {
+      let val := callcode(gas(), address(), 0, 0, 1, 0, 1)
+      log1(0, 0, val)
+    }
+  }
+
+  function DELEGATECALL () public {
+    assembly {
+      let val := delegatecall(gas(), address(), 0, 1, 0, 1)
+      log1(0, 0, val)
+    }
+  }
+
+  function CREATE2 () public {
+    assembly {
+      let val := create2(0, 0, 0, 1)
+      log1(0, 0, val)
+    }
+  }
+
+  function SELFDESTRUCT () public {
+    assembly {
+      selfdestruct(0)
+      log1(0, 0, 1)
     }
   }
 }

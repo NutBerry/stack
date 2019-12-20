@@ -27,7 +27,9 @@ module.exports = class Utils {
 
     logs.forEach(
       function (log) {
-        console.log(topics[log.topics[0]].decode(log.data));
+        const obj = topics[log.topics[0]];
+
+        console.log(obj ? obj.decode(log.data) : log);
       }
     );
   }

@@ -1,8 +1,8 @@
 'use strict';
 
-const { HydratedRuntime, BN } = require('../evm/utils');
+const { EVMRuntime, BN } = require('../evm/utils');
 
-module.exports = class VerifierRuntime extends HydratedRuntime {
+module.exports = class VerifierRuntime extends EVMRuntime {
   async initRunState (obj) {
     const runState = await super.initRunState(obj);
 

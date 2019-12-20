@@ -2,6 +2,12 @@ pragma solidity ^0.5.2;
 
 contract InventoryStorage {
   function _getStorage (bytes32 target) internal view returns (uint256) {
+    uint256 v;
+    assembly {
+      v := sload(target)
+    }
+    return v;
+    /*
     uint256 rvalue;
     uint ok = 1;
 
@@ -31,9 +37,14 @@ contract InventoryStorage {
     }
 
     return rvalue;
+    */
   }
 
   function _setStorage (bytes32 target, uint256 value) internal {
+    assembly {
+      sstore(target, value)
+    }
+    /*
     assembly {
       for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
         let t := mload(i)
@@ -52,9 +63,15 @@ contract InventoryStorage {
         }
       }
     }
+    */
   }
 
   function _incrementStorage (bytes32 target, uint256 value) internal {
+    assembly {
+      let v := sload(target)
+      sstore(target, add(v, value))
+    }
+    /*
     assembly {
       for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
         let t := mload(i)
@@ -73,6 +90,7 @@ contract InventoryStorage {
         }
       }
     }
+    */
   }
 
   function _hashExit (address target, address owner) internal pure returns (bytes32 ret) {
@@ -112,21 +130,7 @@ contract InventoryStorage {
     _incrementStorage(_hashExit(target, owner), value);
   }
 
-  function getAllowanceValue (address target, address owner, address spender) public view returns (uint256 ret) {
-    bytes32 key = _hashAllowance(target, owner, spender);
-    assembly {
-      ret := sload(key)
-    }
-  }
-
-  function setAllowanceValue (address target, address owner, address spender, uint256 value) internal {
-    bytes32 key = _hashAllowance(target, owner, spender);
-    assembly {
-      sstore(key, value)
-    }
-  }
-
-  function getAllowance (address target, address owner, address spender) public view returns (uint256) {
+  function getAllowance (address target, address owner, address spender) internal view returns (uint256) {
     return _getStorage(_hashAllowance(target, owner, spender));
   }
 
@@ -134,7 +138,7 @@ contract InventoryStorage {
     _setStorage(_hashAllowance(target, owner, spender), value);
   }
 
-  function getERC20 (address target, address owner) internal returns (uint256) {
+  function getERC20 (address target, address owner) internal view returns (uint256) {
     return _getStorage(_hashERC20(target, owner));
   }
 
@@ -156,7 +160,7 @@ contract InventoryStorage {
     }
   }
 
-  function getExit (address target, address owner) public view returns (uint256) {
+  function getExit (address target, address owner) internal view returns (uint256) {
     return _getStorage(_hashExit(target, owner));
   }
 
@@ -164,7 +168,7 @@ contract InventoryStorage {
     _setStorage(_hashExit(target, owner), value);
   }
 
-  function getNonce (address target) public view returns (uint256) {
+  function getNonce (address target) internal view returns (uint256) {
     return _getStorage(_hashNonce(target));
   }
 
