@@ -89,8 +89,12 @@ describe('GatedComputing', async function () {
 
       tx = await(await testGatedContract.testCall(addr, callData || '0x', { gasLimit: 0xfffffff })).wait();
 
-      assert.equal(tx.events[tx.events.length - 2].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
-      assert.equal(tx.events[tx.events.length - 1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
+      assert.equal(
+        tx.events[tx.events.length - 2].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000'
+      );
+      assert.equal(
+        tx.events[tx.events.length - 1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001'
+      );
 
       console.log({ gasUsed, addr, patchedBytecodeLength, bytecodeLength });
     });
@@ -220,7 +224,11 @@ describe('GatedComputing', async function () {
       '0xfa'
     )).wait();
 
-    tx = await(await testGatedContract.deployAndCall(gated.address, testContract.address, data, { gasLimit: 0xfffffff })).wait();
+    tx = await(
+      await testGatedContract.deployAndCall(
+        gated.address, testContract.address, data, { gasLimit: 0xfffffff }
+      )
+    ).wait();
     console.log({ gasUsed: tx.cumulativeGasUsed.toString() });
     // success ?
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');

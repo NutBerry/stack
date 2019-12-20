@@ -128,14 +128,14 @@ const allowed = [
   Constants.INVALID,
 ];
 
-let allowedVal = 0n;
+let allowedVal = BigInt(0);
 allowed.forEach(
   (opcode, i) => {
     if (opcode === undefined) {
       throw new Error(`undefined opcode at position: ${i}`);
     }
     const n = parseInt(opcode, 16);
-    allowedVal |= 1n << BigInt(n);
+    allowedVal |= BigInt(1) << BigInt(n);
   }
 );
 console.log({ allowed: `0x${allowedVal.toString(16).padStart('0', 64)}` });
@@ -147,7 +147,7 @@ Object.keys(Constants).forEach(
   }
 );
 for (let i = 0; i <= 0xff; i++) {
-  const enabled = allowedVal & (1n << BigInt(i));
+  const enabled = allowedVal & (BigInt(1) << BigInt(i));
   const rev = reverse[i.toString(16).padStart('0', 2)];
   if (!enabled && rev) {
     console.log(`disallowed: ${i} ${rev}`);

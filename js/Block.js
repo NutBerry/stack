@@ -158,6 +158,7 @@ module.exports = class Block {
       !tx.data.startsWith(FUNC_SIG_WRITE_DATA) &&
       !tx.data.startsWith(FUNC_SIG_BREED)
     ) {
+      // eslint-disable-next-line no-undef
       code = await provider.getCode(tx.to);
       code = Utils.toUint8Array(code);
       caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
