@@ -12,6 +12,7 @@ describe('GatedComputing', async function () {
   const ALICE = '0x1111111111111111111111111111111111111111';
   const BOB = '0x2222222222222222222222222222222222222222';
   const ACCOUNT_BALANCE = '0x00000000000000000000000000000000000000000000000000000000000000ff';
+  const gasLimit = '0x' + (8000000).toString(16);
   const testContractInterface = new ethers.utils.Interface(TestContract.abi);
   const testGatedInterface = new ethers.utils.Interface(TestGatedComputing.abi);
   let provider;
@@ -56,7 +57,7 @@ describe('GatedComputing', async function () {
       {
         to: gated.address,
         data: bytecode,
-        gasLimit: 0xffffffff,
+        gasLimit,
       }
     )).wait();
 
@@ -66,7 +67,7 @@ describe('GatedComputing', async function () {
       {
         to: gated.address,
         data: bytecode,
-        gasLimit: 0xffffffff,
+        gasLimit,
       }
     )).wait();
   });
@@ -79,7 +80,7 @@ describe('GatedComputing', async function () {
         {
           to: gated.address,
           data: bytecode,
-          gasLimit: 0xffffffff,
+          gasLimit,
         }
       )).wait();
 
@@ -87,7 +88,7 @@ describe('GatedComputing', async function () {
       const patchedBytecode = await provider.getCode(addr);
       const patchedBytecodeLength = (patchedBytecode.length - 2) / 2;
 
-      tx = await(await testGatedContract.testCall(addr, callData || '0x', { gasLimit: 0xfffffff })).wait();
+      tx = await(await testGatedContract.testCall(addr, callData || '0x', { gasLimit })).wait();
 
       assert.equal(
         tx.events[tx.events.length - 2].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -139,7 +140,7 @@ describe('GatedComputing', async function () {
             {
               to: patchedAddress,
               data: calldata,
-              gasLimit: 0xfffff,
+              gasLimit,
             }
           )).wait();
         } catch (e) {
@@ -155,7 +156,7 @@ describe('GatedComputing', async function () {
     const data = testContractInterface.functions.test.encode(
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]
     );
-    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit: 0xfffffff })).wait();
+    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
 
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
@@ -165,7 +166,7 @@ describe('GatedComputing', async function () {
     const data = testContractInterface.functions.testERC20.encode(
       [TOKEN, ALICE, BOB, ACCOUNT_BALANCE]
     );
-    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit: 0xfffffff })).wait();
+    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
 
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
@@ -192,7 +193,7 @@ describe('GatedComputing', async function () {
       '0xfa'
     )).wait();
 
-    tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit: 0xfffffff })).wait();
+    tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
     console.log({ gasUsed: tx.cumulativeGasUsed.toString() });
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
@@ -226,7 +227,7 @@ describe('GatedComputing', async function () {
 
     tx = await(
       await testGatedContract.deployAndCall(
-        gated.address, testContract.address, data, { gasLimit: 0xfffffff }
+        gated.address, testContract.address, data, { gasLimit }
       )
     ).wait();
     console.log({ gasUsed: tx.cumulativeGasUsed.toString() });

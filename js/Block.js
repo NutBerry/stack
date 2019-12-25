@@ -2,11 +2,9 @@
 
 const ethers = require('ethers');
 
-const BerryInventory = require('./BerryInventory.js');
+const Inventory = require('./Inventory.js');
 const NutBerryRuntime = require('./NutBerryRuntime.js');
 const Utils = require('./Utils.js');
-const { DEFAULT_CONTRACT } = require('./DefaultContract.js');
-const DEFAULT_CONTRACT_CODE = Utils.toUint8Array(DEFAULT_CONTRACT);
 
 module.exports = class Block {
   constructor (prevBlock, bridge) {
@@ -21,7 +19,7 @@ module.exports = class Block {
     // the blockNumber
     this.number = prevBlock ? prevBlock.number + 1 : 1;
     // the token inventory
-    this.inventory = prevBlock ? prevBlock.inventory.clone() : new BerryInventory(bridge.contract.address);
+    this.inventory = prevBlock ? prevBlock.inventory.clone() : new Inventory();
     // address > nonce mapping
     this.nonces = {};
     // txHash > tx mapping
@@ -128,10 +126,12 @@ module.exports = class Block {
     return true;
   }
 
-  async executeTx (tx) {
-    const runtime = new NutBerryRuntime();
-    const customEnvironment = this.inventory;
-    let code = DEFAULT_CONTRACT_CODE;
+  async dryExecuteTx (tx) {
+    return (await this.executeTx(tx, true)) || '0x';
+  }
+
+  async executeTx (tx, dry) {
+    const customEnvironment = dry ? this.inventory.clone() : this.inventory;
 
     // TODO
     const FUNC_SIG_BALANCE_OF = '0x70a08231';
@@ -145,7 +145,6 @@ module.exports = class Block {
     const FUNC_SIG_WRITE_DATA = '0xa983d43f';
     const FUNC_SIG_BREED = '0x451da9f9';
 
-    let caller;
     if (
       !tx.data.startsWith(FUNC_SIG_BALANCE_OF) &&
       !tx.data.startsWith(FUNC_SIG_APPROVE) &&
@@ -159,24 +158,36 @@ module.exports = class Block {
       !tx.data.startsWith(FUNC_SIG_BREED)
     ) {
       // eslint-disable-next-line no-undef
-      code = await provider.getCode(tx.to);
+      let code = await provider.getCode(tx.to);
+      // TODO: run the patched version of the contract?
       code = Utils.toUint8Array(code);
-      caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
+      const caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
+      // this is a contract
+      const data = Utils.toUint8Array(tx.data);
+      const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
+      const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
+      // TODO: copy / snapshot inventory
+      const runtime = new NutBerryRuntime();
+      const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
+
+      if (state.errno !== 0) {
+        // TODO: revert state once we support arbitrary contracts
+        this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);
+        return '';
+      }
+
+      return `0x${state.returnValue.toString('hex')}`;
     }
 
-    const data = Utils.toUint8Array(tx.data);
-    const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
-    const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
-    // TODO: copy / snapshot inventory
-    const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
+    // not a contract
+    const msgSender = tx.from.toLowerCase();
+    // `self` is 0
+    const to = '0x0000000000000000000000000000000000000000';
+    const target = tx.to.toLowerCase();
+    const data = tx.data.replace('0x', '');
+    const res = customEnvironment.handleCall(msgSender, to, target, data) || '';
 
-    if (state.errno !== 0) {
-      // TODO: revert state once we support arbitrary contracts
-      this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);
-      return '';
-    }
-
-    return `0x${state.returnValue.toString('hex')}`;
+    return res;
   }
 
   getTransaction (txHash) {
@@ -191,6 +202,21 @@ module.exports = class Block {
     }
 
     return null;
+  }
+
+  getBlockOfTransaction (txHash) {
+    let block = this;
+
+    while (block) {
+      let tx = block.transactions[txHash];
+      if (tx) {
+        const txIndex = block.transactionHashes.indexOf(txHash);
+        return { block, tx, txIndex };
+      }
+      block = block.prevBlock;
+    }
+
+    return {};
   }
 
   async submitBlock (bridge) {

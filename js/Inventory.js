@@ -2,12 +2,23 @@
 
 const ethers = require('ethers');
 
-const UINT256_ZERO = ''.padStart(128, '0');
 const BIGINT_ZERO = BigInt(0);
 const BIGINT_ONE = BigInt(1);
 const BIGINT_POW_2_32 = BigInt(4294967296);
 const UINT_ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const UINT_ONE = '0x0000000000000000000000000000000000000000000000000000000000000001';
+const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
+
+const FUNC_SIG_BALANCE_OF = '70a08231';
+const FUNC_SIG_APPROVE = '095ea7b3';
+const FUNC_SIG_ALLOWANCE = 'dd62ed3e';
+const FUNC_SIG_TRANSFER = 'a9059cbb';
+const FUNC_SIG_TRANSFER_FROM = '23b872dd';
+const FUNC_SIG_OWNER_OF = '6352211e';
+const FUNC_SIG_GET_APPROVED = '081812fc';
+const FUNC_SIG_READ_DATA = '37ebbc03';
+const FUNC_SIG_WRITE_DATA = 'a983d43f';
+const FUNC_SIG_BREED = '451da9f9';
 
 /// @notice Supports the following functions:
 ///
@@ -185,14 +196,14 @@ module.exports = class Inventory {
 
   getAllowance (target, owner, spender) {
     const allowance = this.allowances[target + owner + spender];
-    return allowance || UINT256_ZERO;
+    return allowance || UINT_ZERO;
   }
 
   setAllowance (target, owner, spender, value) {
     // TODO
     this.allowances[target + owner + spender] = value;
     this._hashAllowance(target, owner, spender, value);
-    return '0000000000000000000000000000000000000000000000000000000000000001';
+    return UINT_ONE;
   }
 
   addAllowance (target, owner, spender, value) {
@@ -230,7 +241,7 @@ module.exports = class Inventory {
       return allowance;
     }
 
-    return UINT256_ZERO;
+    return UINT_ZERO;
   }
 
   /// @notice ERC721, ERC1948, ERC1949  only.
@@ -253,7 +264,7 @@ module.exports = class Inventory {
         return msgSender.replace('0x', '').padStart(64, '0');
       }
 
-      return UINT256_ZERO;
+      return UINT_ZERO;
     }
   }
 
@@ -276,7 +287,7 @@ module.exports = class Inventory {
         e.value = `0x${(has - want).toString(16).padStart(64, '0')}`;
         this._hashERC20(target, msgSender, e.value);
 
-        if (to === this._bridgeAddr) {
+        if (to === ADDRESS_ZERO) {
           this._incrementExit(target, msgSender, want);
         } else {
           // TODO: hash exits
@@ -285,7 +296,7 @@ module.exports = class Inventory {
               address: target,
               owner: to,
               value: value,
-              data: '0x0000000000000000000000000000000000000000000000000000000000000000',
+              data: UINT_ZERO,
               isERC20: true,
             };
             this.addToken(newEntry);
@@ -296,7 +307,7 @@ module.exports = class Inventory {
           }
         }
 
-        return '0000000000000000000000000000000000000000000000000000000000000001';
+        return UINT_ONE;
       }
     }
   }
@@ -324,7 +335,7 @@ module.exports = class Inventory {
       this._hashERC20(target, from, e.value);
 
       // now update `to`
-      if (to === this._bridgeAddr) {
+      if (to === ADDRESS_ZERO) {
         this._incrementExit(target, from, want);
       } else {
         const oldEntry = this.getERC20(target, to);
@@ -338,20 +349,20 @@ module.exports = class Inventory {
             owner: to,
             value: tokenId,
             isERC20: true,
-            data: '0x0000000000000000000000000000000000000000000000000000000000000000',
+            data: UINT_ZERO,
           };
           this._hashERC20(target, to, newEntry.value);
           this.addToken(newEntry);
         }
       }
-      return '0000000000000000000000000000000000000000000000000000000000000001';
+      return UINT_ONE;
     } else {
       const e = this.getERC721(target, tokenId);
 
       if (e && this._isApprovedOrOwner(msgSender, e)) {
         delete this.allowances[target + e.owner + msgSender];
         e.owner = to;
-        return '0000000000000000000000000000000000000000000000000000000000000001';
+        return UINT_ONE;
       }
     }
   }
@@ -373,7 +384,7 @@ module.exports = class Inventory {
 
     if (e && (e.isERC1948 || e.isERC1949) && this._isApprovedOrOwner(msgSender, e)) {
       e.data = newTokenData;
-      return '0000000000000000000000000000000000000000000000000000000000000001';
+      return UINT_ONE;
     }
   }
 
@@ -407,6 +418,84 @@ module.exports = class Inventory {
       this.addToken(newEntry);
       // returns nothing
       return '';
+    }
+  }
+
+  // `_to` = contract address
+  handleCall (msgSender, _to, target, data) {
+    let offset = 0;
+    let inventory = this;
+    const funcSig = data.substring(offset, offset += 8);
+
+    if (funcSig === FUNC_SIG_BALANCE_OF) {
+      const owner = `0x${data.substring(offset += 24, offset += 40)}`;
+
+      return inventory.balanceOf(target, owner);
+    }
+
+    if (funcSig === FUNC_SIG_ALLOWANCE) {
+      const owner = '0x' + data.substring(offset += 24, offset += 40);
+      const spender = '0x' + data.substring(offset += 24, offset += 40);
+
+      return inventory.allowance(target, owner, spender);
+    }
+
+    if (funcSig === FUNC_SIG_APPROVE) {
+      // TODO
+      const spender = '0x' + data.substring(offset += 24, offset += 40);
+      const value = '0x' + data.substring(offset, offset += 64);
+
+      return inventory.setAllowance(target, msgSender, spender, value);
+    }
+
+    if (funcSig === FUNC_SIG_TRANSFER) {
+      const to = '0x' + data.substring(offset += 24, offset += 40);
+      const value = '0x' + data.substring(offset, offset += 64);
+
+      return inventory.transfer(msgSender, target, to, value);
+    }
+
+    if (funcSig === FUNC_SIG_TRANSFER_FROM) {
+      const from = '0x' + data.substring(offset += 24, offset += 40);
+      const to = '0x' + data.substring(offset += 24, offset += 40);
+      const tokenId = '0x' + data.substring(offset, offset += 64);
+
+      return inventory.transferFrom(msgSender, target, from, to, tokenId);
+    }
+
+    if (this.testing) {
+      if (funcSig === FUNC_SIG_OWNER_OF) {
+        const tokenId = '0x' + data.substring(offset, offset += 64);
+
+        return inventory.ownerOf(target, tokenId);
+      }
+
+      if (funcSig === FUNC_SIG_GET_APPROVED) {
+        const tokenId = '0x' + data.substring(offset, offset += 64);
+
+        return inventory.getApproved(_to, target, tokenId);
+      }
+
+      if (funcSig === FUNC_SIG_READ_DATA) {
+        const tokenId = '0x' + data.substring(offset, offset += 64);
+
+        return inventory.readData(target, tokenId);
+      }
+
+      if (funcSig === FUNC_SIG_WRITE_DATA) {
+        const tokenId = '0x' + data.substring(offset, offset += 64);
+        const newTokenData = '0x' + data.substring(offset, offset += 64);
+
+        return inventory.writeData(msgSender, target, tokenId, newTokenData);
+      }
+
+      if (funcSig === FUNC_SIG_BREED) {
+        const tokenId = '0x' + data.substring(offset, offset += 64);
+        const to = '0x' + data.substring(offset += 24, offset += 40);
+        const newTokenData = '0x' + data.substring(offset, offset += 64);
+
+        return inventory.breed(msgSender, target, tokenId, to, newTokenData);
+      }
     }
   }
 };

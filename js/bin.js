@@ -30,6 +30,7 @@ const rpcUrl = process.env.ROOT_RPC_URL;
     privKey: privKey,
     debugMode: process.env.DEBUG_MODE === '1',
     badNodeMode: process.env.BAD_NODE_MODE === '1',
+    eventCheckMs: parseInt(process.env.EVENT_CHECK_MS),
   };
 
   new Server(config);

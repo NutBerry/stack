@@ -1,6 +1,8 @@
 'use strict';
 
 const ZERO_LOGS_BLOOM = `0x${''.padStart(512, '0')}`;
+const ZERO_NONCE = '0x0000000000000000';
+const ZERO_HASH = `0x${''.padStart(64, '0')}`;
 
 module.exports = class Methods {
   static 'debug_submitBlock' (obj, bridge) {
@@ -27,6 +29,11 @@ module.exports = class Methods {
     return true;
   }
 
+  static 'debug_haltEvents' (obj, bridge) {
+    bridge._debugHaltEvents = obj.params[0] ? true : false;
+    return bridge._debugHaltEvents;
+  }
+
   static 'web3_clientVersion' (obj, bridge) {
     return bridge.contract.address;
   }
@@ -40,13 +47,37 @@ module.exports = class Methods {
     return '0x00';
   }
 
-  static async 'eth_blockNumber' (obj) {
-    // TODO
-    return '0x00';
+  static async 'eth_blockNumber' (obj, bridge) {
+    return `0x${bridge.currentBlock.number.toString(16)}`;
   }
 
-  static async 'eth_getBlockByNumber' (obj) {
+  static async 'eth_getBlockByNumber' (obj, bridge) {
     // TODO
+    const num = parseInt(obj.params[0], 16);
+    const block = await bridge.getBlockByNumber(num, true);
+
+    if (!block) {
+      return null;
+    }
+
+    const prevBlock = bridge.prevBlock;
+    const transactions = block.transactionHashes;
+
+    return {
+      hash: block.hash || ZERO_HASH,
+      parentHash: prevBlock ? prevBlock.hash : ZERO_HASH,
+      number: `0x${block.number.toString(16)}`,
+      // TODO: implement timestamp
+      timestamp: '0x0',
+      // TODO: implement block nonce
+      nonce: ZERO_NONCE,
+      difficulty: '0x0',
+      gasLimit: '0x0',
+      gasUsed: '0x0',
+      miner: '0x0000000000000000000000000000000000000000',
+      extraData: '0x',
+      transactions,
+    };
   }
 
   static async 'eth_getBalance' (obj) {
@@ -55,6 +86,8 @@ module.exports = class Methods {
   }
 
   static async 'eth_getTransactionCount' (obj, bridge) {
+    // TODO: pending, latest
+    // currently returns pending-nonce
     return bridge.getNonce(obj.params[0]);
   }
 
@@ -65,18 +98,19 @@ module.exports = class Methods {
 
   static async 'eth_getTransactionReceipt' (obj, bridge) {
     const txHash = obj.params[0];
-    const tx = bridge.getTransaction(txHash);
+    const { block, tx, txIndex } = bridge.currentBlock.getBlockOfTransaction(txHash);
 
     if (!tx) {
       return null;
     }
 
     // TODO: proper receipts
+    const status = block === bridge.currentBlock ? '0x1' : '0x2';
     return {
       transactionHash: txHash,
-      transactionIndex: '0x00',
-      blockHash: txHash,
-      blockNumber: '0x01',
+      transactionIndex: `0x${txIndex.toString(16)}`,
+      blockHash: block.hash || ZERO_HASH,
+      blockNumber: `0x${block.number.toString(16)}`,
       from: tx.from,
       to: tx.to,
       cumulativeGasUsed: '0x00',
@@ -84,7 +118,7 @@ module.exports = class Methods {
       contractAddress: null,
       logs: [],
       logsBloom: ZERO_LOGS_BLOOM,
-      status: '0x01',
+      status,
     };
   }
 
@@ -117,7 +151,7 @@ module.exports = class Methods {
   }
 
   static async 'eth_getCode' (obj, bridge) {
-    return bridge.getCode(obj.params[1]);
+    return bridge.getCode(obj.params[0], obj.params[1]);
   }
 
   static async 'eth_sendRawTransaction' (obj, bridge) {

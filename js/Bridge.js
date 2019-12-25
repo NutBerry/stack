@@ -2,18 +2,13 @@
 
 const ethers = require('ethers');
 
-const BerryInventory = require('./BerryInventory.js');
 const Block = require('./Block.js');
-const NutBerryRuntime = require('./NutBerryRuntime.js');
-const { DEFAULT_CONTRACT } = require('./DefaultContract.js');
 const Utils = require('./Utils.js');
 
 const BRIDGE_ABI = require('./BridgeAbi.js');
-const DEFAULT_CONTRACT_CODE = Utils.toUint8Array(DEFAULT_CONTRACT);
 
 // TODO: make that configurable via options
 const UPDATE_CHECK_MS = 10000;
-const EVENT_CHECK_MS = 1000;
 
 // Deposit(address,address,uint256)
 const TOPIC_DEPOSIT = '0x5548c837ab068cf56a2c2479df0882a4922fd203edb7517321831d95078c5f62';
@@ -33,10 +28,12 @@ module.exports = class Bridge {
   constructor (options) {
     // TODO: implement support for chainId (cross-chain transaction replay attacks)
     this.chainId = 0;
-    this.debugMode = options.debugMode ? true : false;
-    this.badNodeMode = options.badNodeMode ? true : false;
     this.deposits = [];
     this.blocks = [];
+
+    this.debugMode = options.debugMode ? true : false;
+    this.badNodeMode = options.badNodeMode ? true : false;
+    this.eventCheckMs = options.eventCheckMs || 1000;
 
     this.rootProvider = new ethers.providers.JsonRpcProvider(options.rootRpcUrl);
     if (options.privKey) {
@@ -105,11 +102,12 @@ module.exports = class Bridge {
         rootNetwork: await this.rootProvider.getNetwork(),
         rootProviderVersion,
         bridge: this.contract.address,
-        bridgeVersion: await this.contract.version(),
+        bridgeVersion: await this.contract.VERSION(),
         bondAmount: this.bondAmount.toString(),
         wallet: this.signer.address,
         debugMode: this.debugMode,
         badNodeMode: this.badNodeMode,
+        eventCheckMs: this.eventCheckMs,
       }
     );
 
@@ -175,15 +173,13 @@ module.exports = class Bridge {
           }
         }
       } else {
-        if (!this.debugMode) {
-          const currentBlock = await this.contract.currentBlock();
-          const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
+        const currentBlock = await this.contract.currentBlock();
+        const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
 
-          if (block) {
-            // we found the next pending block
-            if (await this.submitSolution(block.hash)) {
-              this.pendingBlock = block;
-            }
+        if (block) {
+          // we found the next pending block
+          if (await this.submitSolution(block.hash)) {
+            this.pendingBlock = block;
           }
         }
       }
@@ -203,25 +199,27 @@ module.exports = class Bridge {
   }
 
   async _fetchEvents ()  {
-    const latestBlock = await this.rootProvider.getBlockNumber();
+    if (!this._debugHaltEvents) {
+      const latestBlock = await this.rootProvider.getBlockNumber();
 
-    if (latestBlock > this.eventFilter.fromBlock) {
-      this.log('New root block(s). Checking for new events...');
-      this.eventFilter.fromBlock += 1;
-      this.eventFilter.toBlock = latestBlock;
+      if (latestBlock > this.eventFilter.fromBlock) {
+        this.log('New root block(s). Checking for new events...');
+        this.eventFilter.fromBlock += 1;
+        this.eventFilter.toBlock = latestBlock;
 
-      const res = await this.rootProvider.getLogs(this.eventFilter);
-      const len = res.length;
+        const res = await this.rootProvider.getLogs(this.eventFilter);
+        const len = res.length;
 
-      this.log(`${len} new events`);
-      for (let i = 0; i < len; i++) {
-        await this._dispatchEvent(res[i]);
+        this.log(`${len} new events`);
+        for (let i = 0; i < len; i++) {
+          await this._dispatchEvent(res[i]);
+        }
+
+        this.eventFilter.fromBlock = latestBlock;
       }
-
-      this.eventFilter.fromBlock = latestBlock;
     }
 
-    setTimeout(this._fetchEvents.bind(this), this.debugMode ? 30 : EVENT_CHECK_MS);
+    setTimeout(this._fetchEvents.bind(this), this.eventCheckMs);
   }
 
   async onDeposit (data) {
@@ -281,7 +279,7 @@ module.exports = class Bridge {
 
         function _parseInt (offset, length) {
           let result = 0;
-          for (let i = 0; i < length; i+=2) {
+          for (let i = 0; i < length; i += 2) {
             let v = data.substring(offset + i, offset + i + 2);
             v = parseInt(v, 16);
             result = v + (result * 256);
@@ -346,29 +344,33 @@ module.exports = class Bridge {
       const r = '0x' + data.substring(offset, offset += 64);
       const s = '0x' + data.substring(offset, offset += 64);
       const v = '0x' + data.substring(offset, offset += 2);
-      const from = ethers.utils.recoverAddress(
-        Buffer.from(digest.replace('0x', ''), 'hex'), { r, s, v }
-      );
+      try {
+        const from = ethers.utils.recoverAddress(
+          Buffer.from(digest.replace('0x', ''), 'hex'), { r, s, v }
+        );
 
-      const tx = {
-        from: from.toLowerCase(),
-        to: '0x' + to,
-        // TODO: use BigInt/hex-string
-        nonce: parseInt(nonce, 16),
-        data: '0x' + callData,
-        chainId: 0,
-        gasPrice: '0x00',
-        gasLimit: '0x00',
-        value: '0x00',
-      };
-      const rawHexStr = ethers.utils.serializeTransaction(
-        { to: tx.to, data: tx.data, nonce: tx.nonce, chainId: this.chainId },
-        { r, s, v }
-      );
-      tx.hash = ethers.utils.keccak256(rawHexStr);
-      tx.raw = rawHexStr;
+        const tx = {
+          from: from.toLowerCase(),
+          to: '0x' + to,
+          // TODO: use BigInt/hex-string
+          nonce: parseInt(nonce, 16),
+          data: '0x' + callData,
+          chainId: 0,
+          gasPrice: '0x00',
+          gasLimit: '0x00',
+          value: '0x00',
+        };
+        const rawHexStr = ethers.utils.serializeTransaction(
+          { to: tx.to, data: tx.data, nonce: tx.nonce, chainId: this.chainId },
+          { r, s, v }
+        );
+        tx.hash = ethers.utils.keccak256(rawHexStr);
+        tx.raw = rawHexStr;
 
-      await block.addTransaction(tx);
+        await block.addTransaction(tx);
+      } catch (e) {
+        this.log('TODO - proper tx parsing');
+      }
     }
 
     this.log('Done');
@@ -444,7 +446,11 @@ module.exports = class Bridge {
     return null;
   }
 
-  async getBlockByNumber (num) {
+  async getBlockByNumber (num, includePending) {
+    if (includePending && num === this.currentBlock.number) {
+      return this.currentBlock;
+    }
+
     let len = this.blocks.length;
 
     while (len--) {
@@ -484,19 +490,7 @@ module.exports = class Bridge {
   }
 
   async runCall (tx) {
-    const runtime = new NutBerryRuntime();
-    const customEnvironment = this.currentBlock.inventory.clone();
-    const code = DEFAULT_CONTRACT_CODE;
-    const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
-    const data = Utils.toUint8Array(tx.data);
-    const origin = tx.from ? Buffer.from(tx.from.toLowerCase().replace('0x', ''), 'hex') : undefined;
-    const state = await runtime.run({ address, origin, code, data, customEnvironment });
-
-    if (state.errno !== 0) {
-      return '0x';
-    }
-
-    return `0x${state.returnValue.toString('hex')}`;
+    return this.currentBlock.dryExecuteTx(tx);
   }
 
   async runTx ({ data }) {
@@ -514,8 +508,7 @@ module.exports = class Bridge {
   }
 
   async getCode (addr) {
-    // TODO
-    return DEFAULT_CONTRACT;
+    return this.rootProvider.getCode(addr);
   }
 
   async submitBlock () {
