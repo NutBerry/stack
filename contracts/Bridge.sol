@@ -66,6 +66,7 @@ contract Bridge is _Bridge {
   }
 
   /// @dev Submit a transaction blob (a block)
+  /// TODO: block nonce
   function submitBlock () public payable {
     _checkBond();
 

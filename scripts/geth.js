@@ -30,7 +30,7 @@ const GENESIS = {
     'df08f82de32b8d460adbe8d72043e3a7e25a3b39' +
     '0000000000000000000000000000000000000000000000000000000000000000' +
     '000000000000000000000000000000000000000000000000000000000000000000',
-  'gasLimit': '0xfffffffffffff',
+  'gasLimit': '9000000',
   'difficulty': '0x1',
   'mixHash': '0x0000000000000000000000000000000000000000000000000000000000000000',
   'coinbase': '0x0000000000000000000000000000000000000000',
@@ -152,7 +152,7 @@ async function fetch (obj) {
       '--maxpeers=0',
       '--nodiscover',
       '--nousb',
-      '--targetgaslimit=0xfffffffffffff',
+      '--targetgaslimit=9000000',
       '--gasprice=0x01',
       '--rpc',
       `--rpcport=${process.env.RPC_PORT}`,

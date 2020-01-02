@@ -50,7 +50,7 @@ module.exports = [
   {
     'constant': true,
     'inputs': [],
-    'name': 'version',
+    'name': 'VERSION',
     'outputs': [
       {
         'name': '',

@@ -44,7 +44,7 @@ contract Inventory is InventoryStorage {
       senderValue = has - want;
       setERC20(target, msgSender, senderValue);
 
-      if (to != address(this)) {
+      if (to != address(0)) {
         // now update `to`
         uint256 receiverValue = getERC20(target, to) + want;
         setERC20(target, to, receiverValue);
@@ -70,7 +70,7 @@ contract Inventory is InventoryStorage {
     //if (isERC20) {
     if (true) {
       uint256 allowed = getAllowance(target, from, msgSender);
-      if (from == address(this)) {
+      if (from == address(0)) {
         senderValue = allowed;
       } else {
         senderValue = getERC20(target, from);
@@ -90,7 +90,7 @@ contract Inventory is InventoryStorage {
       senderValue = has - want;
       setERC20(target, from, senderValue);
 
-      if (to != address(this)) {
+      if (to != address(0)) {
         // now update `to`
         uint256 receiverValue = getERC20(target, to) + want;
 

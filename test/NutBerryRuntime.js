@@ -20,8 +20,8 @@ describe('NutBerryRuntime', function () {
 
   it('should fail with empty hofmann struct', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     const data = Utils.toUint8Array(testContract.functions.test.encode(
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]
     ));
@@ -32,9 +32,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC20', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const value = '0x00000000000000000000000000000000000000000000000000000000000000ff';
     let customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       {
         address: TOKEN,
@@ -96,9 +96,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC20 - no allowance', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const value = '0x00000000000000000000000000000000000000000000000000000000000000ff';
     let customEnvironment = new Inventory();
+    customEnvironment.testing = true;
 
     customEnvironment.addToken(
       {
@@ -130,9 +130,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC721', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
 
     customEnvironment.addToken(
       {
@@ -159,7 +159,7 @@ describe('NutBerryRuntime', function () {
     const runtime = new NutBerryRuntime();
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
-    runtime.testing = true;
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       {
         address: TOKEN,
@@ -184,9 +184,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC1948 - wrong tokenId', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       {
         address: TOKEN,
@@ -208,9 +208,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC1948 - not owner and not approved', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       {
         address: TOKEN,
@@ -230,9 +230,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC1949', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       // queen
       {
@@ -269,9 +269,9 @@ describe('NutBerryRuntime', function () {
 
   it('test ERC1949 - wrong tokenId', async () => {
     const runtime = new NutBerryRuntime();
-    runtime.testing = true;
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
+    customEnvironment.testing = true;
     customEnvironment.addToken(
       // queen
       {

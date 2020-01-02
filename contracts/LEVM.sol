@@ -11,11 +11,11 @@ contract LEVM is Inventory {
   bytes4 constant internal FUNC_SIG_ALLOWANCE = hex'dd62ed3e';
   bytes4 constant internal FUNC_SIG_TRANSFER = hex'a9059cbb';
   bytes4 constant internal FUNC_SIG_TRANSFER_FROM = hex'23b872dd';
-  //bytes4 constant internal FUNC_SIG_OWNER_OF = hex'6352211e';
-  //bytes4 constant internal FUNC_SIG_GET_APPROVED = hex'081812fc';
-  //bytes4 constant internal FUNC_SIG_READ_DATA = hex'37ebbc03';
-  //bytes4 constant internal FUNC_SIG_WRITE_DATA = hex'a983d43f';
-  //bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
+  // bytes4 constant internal FUNC_SIG_OWNER_OF = hex'6352211e';
+  // bytes4 constant internal FUNC_SIG_GET_APPROVED = hex'081812fc';
+  // bytes4 constant internal FUNC_SIG_READ_DATA = hex'37ebbc03';
+  // bytes4 constant internal FUNC_SIG_WRITE_DATA = hex'a983d43f';
+  // bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
 
   /// @dev Internal helper for parsing RLP encoded transactions from calldata.
   /// Reverts if the transaction is malformed
@@ -31,14 +31,12 @@ contract LEVM is Inventory {
 
     assembly {
       function parseInt (offset, length, boundary) -> result {
-        if gt(add(offset, length), boundary) {
-          revert(0, 0)
-        }
-
-        for { let i := 0 } lt(i, length) { i := add(i, 1) } {
-          let v := calldataload(add(offset, i))
-          v := byte(0, v)
-          result := add(mul(result, 256), v)
+        if lt(add(offset, length), boundary) {
+          for { let i := 0 } lt(i, length) { i := add(i, 1) } {
+            let v := calldataload(add(offset, i))
+            v := byte(0, v)
+            result := add(mul(result, 256), v)
+          }
         }
       }
 
@@ -51,6 +49,11 @@ contract LEVM is Inventory {
         if gt(val, 0xf7) {
           let len := sub(val, 0xf7)
           lengthOfData := parseInt(add(offset, 1), len, boundary)
+
+          if iszero(lengthOfData) {
+            i := 0xf
+          }
+
           lengthField := add(lengthField, len)
 
           ok := 1
@@ -69,6 +72,11 @@ contract LEVM is Inventory {
           if gt(val, 0xb7) {
             let len := sub(val, 0xb7)
             lengthOfData := parseInt(add(offset, 1), len, boundary)
+
+            if iszero(lengthOfData) {
+              i := 0xf
+            }
+
             lengthField := add(lengthField, len)
 
             ok := 1
@@ -90,7 +98,7 @@ contract LEVM is Inventory {
         }
 
         if gt(add(offset, add(lengthField, lengthOfData)), boundary) {
-          revert(0, 0)
+          i := 0xf
         }
 
         // each transaction should have 6 fields
@@ -117,7 +125,7 @@ contract LEVM is Inventory {
           let nonce := 0
 
           if gt(lengthOfData, 32) {
-            revert(0, 0)
+            //revert(0, 0)
           }
 
           if gt(lengthOfData, 0) {
@@ -134,13 +142,13 @@ contract LEVM is Inventory {
         // 2 = gasPrice, 3 = gasLimit, 5 = value
         if or(eq(i, 2), or(eq(i, 3), eq(i, 5))) {
           if or(xor(lengthOfData, 0), xor(lengthField, 1)) {
-            revert(0,0)
+            //revert(0, 0)
           }
         }
 
         if eq(i, 4) {
           if xor(lengthOfData, 20) {
-            revert(0, 0)
+            //revert(0, 0)
           }
           // to
           let to := calldataload(offset)
@@ -159,27 +167,33 @@ contract LEVM is Inventory {
         if gt(i, 0) {
           offset := add(offset, lengthOfData)
         }
+
+        if eq(i, 0xf) {
+          offset := 0
+        }
       }
 
-      if gt(add(offset, 65), boundary) {
-        revert(0, 0)
+      if gt(offset, 0) {
+        if gt(add(offset, 65), boundary) {
+          // revert(0, 0)
+        }
+
+        let backup := mload(0x40)
+
+        calldatacopy(0x40, offset, 64)
+        offset := add(offset, 64)
+        let v := calldataload(offset)
+        v := byte(0, v)
+        mstore(0x20, v)
+        offset := add(offset, 1)
+
+        // ecrecover
+        let success := staticcall(gas(), 0x1, 0, 128, 0, 0x20)
+        let from := mload(0)
+        mstore(params, from)
+        mstore(0x40, backup)
+        mstore(0x60, 0)
       }
-
-      let backup := mload(0x40)
-
-      calldatacopy(0x40, offset, 64)
-      offset := add(offset, 64)
-      let v := calldataload(offset)
-      v := byte(0, v)
-      mstore(0x20, v)
-      offset := add(offset, 1)
-
-      // ecrecover
-      let success := staticcall(gas(), 0x1, 0, 128, 0, 0x20)
-      let from := mload(0)
-      mstore(params, from)
-      mstore(0x40, backup)
-      mstore(0x60, 0)
     }
 
     return offset;
@@ -351,8 +365,16 @@ contract LEVM is Inventory {
       length := calldatasize()
     }
 
+    if (length < 65) {
+      return;
+    }
+
     while (offset < length) {
       offset = parseTx(offset, length, params);
+
+      if (offset == 0) {
+        break;
+      }
 
       address from = address(uint160(params[0]));
       address to = address(uint160(params[1]));
@@ -379,13 +401,10 @@ contract LEVM is Inventory {
         bytes memory callResult = handleCall(from, to, calldataOffset, calldataLength);
         // valid transactions must exit without error
         if (callResult.length == 0) {
-          // TODO: revert inventory state once we support arbitrary smart contracts
           continue;
         }
       } else {
-        // TODO:
-        // patch code
-        // callcode(g,a,v,0,0,0,0)
+        // TODO: revert inventory state once we support arbitrary smart contracts
         bytes memory c = new bytes(calldataLength);
         assembly {
           calldatacopy(add(c, 32), calldataOffset, calldataLength)

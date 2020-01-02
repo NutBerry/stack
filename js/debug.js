@@ -85,6 +85,7 @@ Contract: ${artifact.contractName}
       BRIDGE_ADDRESS: bridge.address,
       ROOT_RPC_URL: rpcUrl,
       DEBUG_MODE: 1,
+      EVENT_CHECK_MS: 30,
     },
     process.env
   );
