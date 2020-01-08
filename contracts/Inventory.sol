@@ -30,25 +30,22 @@ contract Inventory is InventoryStorage {
     address to,
     uint256 value
   ) internal returns (bool) {
-    uint256 senderValue = getERC20(target, msgSender);
-
     //if (isERC20) {
     if (true) {
-      uint256 has = senderValue;
-      uint256 want = value;
+      uint256 senderValue = getERC20(target, msgSender);
       // not enough
-      if (has < want || want == 0) {
+      if (senderValue < value || value == 0) {
         return false;
       }
 
-      senderValue = has - want;
+      senderValue -= value;
       setERC20(target, msgSender, senderValue);
 
       if (to == address(0)) {
-        incrementExit(target, msgSender, want);
+        incrementExit(target, msgSender, value);
       } else {
         // now update `to`
-        uint256 receiverValue = getERC20(target, to) + want;
+        uint256 receiverValue = getERC20(target, to) + value;
         setERC20(target, to, receiverValue);
       }
 
@@ -63,35 +60,27 @@ contract Inventory is InventoryStorage {
     address target,
     address from,
     address to,
-    uint256 tokenId
+    uint256 value
   ) internal returns (bool) {
-    uint256 senderValue;
 
     //if (isERC20) {
     if (true) {
       uint256 allowed = getAllowance(target, from, msgSender);
-      if (from == address(0)) {
-        senderValue = allowed;
-      } else {
-        senderValue = getERC20(target, from);
-      }
-
-      uint256 has = senderValue;
-      uint256 want = tokenId;
+      uint256 senderValue = getERC20(target, from);
 
       // not enough
-      if (has < want || (want > allowed && from != msgSender) || want == 0) {
+      if (senderValue < value || (value > allowed && from != msgSender) || value == 0) {
         return false;
       }
 
       if (from != msgSender) {
-        setAllowance(target, from, msgSender, allowed - want);
+        setAllowance(target, from, msgSender, allowed - value);
       }
-      senderValue = has - want;
+      senderValue -= value;
       setERC20(target, from, senderValue);
 
       // now update `to`
-      uint256 receiverValue = getERC20(target, to) + want;
+      uint256 receiverValue = getERC20(target, to) + value;
       setERC20(target, to, receiverValue);
 
       return true;
