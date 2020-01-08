@@ -386,11 +386,12 @@ describe('Bridge/RPC', async function () {
     });
 
     it('submitBlock should throw - block too large', async () => {
+      const blockSize = await bridge.MAX_BLOCK_SIZE();
       await assertRevert(
         rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
-            data: '0x25ceb4b2' + ''.padStart(8192 + 1, 'ac'),
+            data: '0x25ceb4b2' + ''.padStart((blockSize.toNumber() * 2) + 2, 'ac'),
             value: await bridge.BOND_AMOUNT(),
             gasLimit: 6000000,
           }
@@ -414,6 +415,14 @@ describe('Bridge/RPC', async function () {
     it('submitSolution without bond', async () => {
       await assertRevert(
         bridge.submitSolution(blockHash, solutionHash, { gasLimit: 6000000 })
+      );
+    });
+
+    it('submitSolution - wrong blockHash', async () => {
+      await assertRevert(
+        bridge.submitSolution('0x00000000000000000000000000000000000000000000000000000000000000cc', solutionHash,
+          { value: await bridge.BOND_AMOUNT(), gasLimit: 6000000 }
+        )
       );
     });
 
