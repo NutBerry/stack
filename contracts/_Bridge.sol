@@ -55,33 +55,6 @@ contract _Bridge is LEVM {
     }
   }
 
-  function _validateBlock () internal {
-    assembly {
-      // zero the memory for our in-memory storage region
-      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x20) } {
-        mstore(i, 0)
-      }
-    }
-
-    _replay();
-
-    assembly {
-      // storage {key, value}
-      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
-        let key := mload(i)
-        let value := mload(add(i, 0x20))
-
-        if iszero(key) {
-          i := 0xffff
-        }
-
-        if gt(key, 0) {
-          sstore(key, value)
-        }
-      }
-    }
-  }
-
   /// @dev Checks if `blockHash` is the current block that needs finalization.
   function _checkBlock (bytes32 blockHash) internal {
     uint256 cblock = currentBlock + 1;
