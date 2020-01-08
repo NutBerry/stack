@@ -159,7 +159,16 @@ module.exports = class Methods {
     return bridge.runTx({ data });
   }
 
+  static async 'eth_getLogs' (obj, bridge) {
+    // TODO
+    // params
+    // fromBlock
+    // toBlock
+    // address
+    // topics
+    const eventFilter = obj.params[0];
+  }
+
   // TODO
-  // eth_getLogs
   // eth_getStorageAt
 };
