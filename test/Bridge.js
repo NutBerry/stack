@@ -24,6 +24,18 @@ const PRIV_KEY_BOB = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4
 const PRIV_KEY_CHARLIE = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501205';
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
+async function assertRevert (tx) {
+  let reverted = false;
+
+  try {
+    await (await tx).wait();
+  } catch (e) {
+    reverted = true;
+  }
+
+  assert.ok(reverted, 'Expected revert');
+}
+
 // TODO: way more tests ;)
 describe('Bridge/RPC', async function () {
   const ERC721_TOKEN_ID = '0x01';
@@ -347,24 +359,40 @@ describe('Bridge/RPC', async function () {
     const solution = Buffer.alloc(64);
     const solutionHash = ethers.utils.keccak256(solution);
 
-    it('submitBlock should throw', async () => {
-      let reverted = false;
+    it('submitBlock should throw - wrong BOND_AMOUNT', async () => {
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0x25ceb4b2' + raw,
+            value: '1',
+          }
+        )
+      );
+    });
 
-      try {
-        const tx = await (
-          await rootWalletAlice.sendTransaction(
-            {
-              to: bridge.address,
-              data: '0x25ceb4b2' + raw,
-              value: '1',
-            }
-          )
-        ).wait();
-      } catch (e) {
-        reverted = true;
-      }
+    it('submitBlock should throw - special block', async () => {
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0x25ceb4b2001122334455',
+            value: await bridge.BOND_AMOUNT(),
+          }
+        )
+      );
+    });
 
-      assert.ok(reverted);
+    it('submitBlock should throw - block too large', async () => {
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0x25ceb4b2' + ''.padStart(8192 + 1, 'ac'),
+            value: await bridge.BOND_AMOUNT(),
+          }
+        )
+      );
     });
 
     it('submitBlock should not throw', async () => {
@@ -380,17 +408,9 @@ describe('Bridge/RPC', async function () {
     });
 
     it('submitSolution without bond', async () => {
-      let reverted = false;
-
-      try {
-        const tx = await (
-          await bridge.submitSolution(blockHash, solutionHash)
-        ).wait();
-      } catch (e) {
-        reverted = true;
-      }
-
-      assert.ok(reverted);
+      await assertRevert(
+        bridge.submitSolution(blockHash, solutionHash)
+      );
     });
 
     it('submitSolution', async () => {
@@ -400,17 +420,9 @@ describe('Bridge/RPC', async function () {
     });
 
     it('finalizeSolution throw', async () => {
-      let reverted = false;
-
-      try {
-        const tx = await (
-          await bridge.finalizeSolution(blockHash, solution)
-        ).wait();
-      } catch (e) {
-        reverted = true;
-      }
-
-      assert.ok(reverted);
+      await assertRevert(
+        bridge.finalizeSolution(blockHash, solution)
+      );
     });
 
     it('finalizeSolution should not throw', async () => {
@@ -450,23 +462,15 @@ describe('Bridge/RPC', async function () {
     });
 
     it('dispute throw', async () => {
-      let reverted = false;
-
-      try {
-        const tx = await (
-          await rootWalletAlice.sendTransaction(
-            {
-              to: bridge.address,
-              data: '0xf240f7c3' + raw,
-              value: '1',
-            }
-          )
-        ).wait();
-      } catch (e) {
-        reverted = true;
-      }
-
-      assert.ok(reverted);
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xf240f7c3' + raw,
+            value: '1',
+          }
+        )
+      );
     });
 
     it('dispute', async () => {
