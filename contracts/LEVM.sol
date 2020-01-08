@@ -314,12 +314,7 @@ contract LEVM is Inventory {
   }
 
   /// @dev Internal function for executing(replay) transactions.
-  function _replay () internal {
-    // 0x80 - 0x880(2k) for in-memory inventory-storage
-    assembly {
-      mstore(0x40, 0x880)
-    }
-
+  function _validateBlock () internal {
     bool isSpecialBlock = false;
     assembly {
       if iszero(byte(0, calldataload(4))) {

@@ -7,63 +7,12 @@ contract InventoryStorage {
       v := sload(target)
     }
     return v;
-    /*
-    uint256 rvalue;
-    uint ok = 1;
-
-    assembly {
-      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
-
-        let t := mload(i)
-
-        if eq(t, target) {
-          rvalue := mload(add(i, 0x20))
-          ok := 0
-        }
-
-        if iszero(t) {
-          i := 0xffff
-        }
-        if iszero(ok) {
-          i := 0xffff
-        }
-      }
-    }
-
-    if (ok == 1) {
-      assembly {
-        rvalue := sload(target)
-      }
-    }
-
-    return rvalue;
-    */
   }
 
   function _setStorage (bytes32 target, uint256 value) internal {
     assembly {
       sstore(target, value)
     }
-    /*
-    assembly {
-      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
-        let t := mload(i)
-
-        if eq(target, t) {
-          mstore(add(i, 0x20), value)
-          i := 0xffff
-          t := 1
-        }
-
-        if iszero(t) {
-          mstore(i, target)
-          mstore(add(i, 0x20), value)
-
-          i := 0xffff
-        }
-      }
-    }
-    */
   }
 
   function _incrementStorage (bytes32 target, uint256 value) internal {
@@ -71,26 +20,6 @@ contract InventoryStorage {
       let v := sload(target)
       sstore(target, add(v, value))
     }
-    /*
-    assembly {
-      for { let i := 0x80 } lt(i, 0x880) { i := add(i, 0x40) } {
-        let t := mload(i)
-
-        if eq(target, t) {
-          mstore(add(i, 0x20), add(value, mload(add(i, 0x20))))
-          i := 0xffff
-          t := 1
-        }
-
-        if iszero(t) {
-          mstore(i, target)
-          mstore(add(i, 0x20), value)
-
-          i := 0xffff
-        }
-      }
-    }
-    */
   }
 
   function _hashExit (address target, address owner) internal pure returns (bytes32 ret) {

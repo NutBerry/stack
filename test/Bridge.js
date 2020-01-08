@@ -30,7 +30,7 @@ async function assertRevert (tx) {
   try {
     await (await tx).wait();
   } catch (e) {
-    reverted = true;
+    reverted = e.code === 'CALL_EXCEPTION';
   }
 
   assert.ok(reverted, 'Expected revert');
@@ -365,7 +365,8 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0x25ceb4b2' + raw,
-            value: '1',
+            value: 1,
+            gasLimit: 6000000,
           }
         )
       );
@@ -378,18 +379,21 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2001122334455',
             value: await bridge.BOND_AMOUNT(),
+            gasLimit: 6000000,
           }
         )
       );
     });
 
     it('submitBlock should throw - block too large', async () => {
+      const blockSize = await bridge.MAX_BLOCK_SIZE();
       await assertRevert(
         rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
-            data: '0x25ceb4b2' + ''.padStart(8192 + 1, 'ac'),
+            data: '0x25ceb4b2' + ''.padStart((blockSize.toNumber() * 2) + 2, 'ac'),
             value: await bridge.BOND_AMOUNT(),
+            gasLimit: 6000000,
           }
         )
       );
@@ -402,6 +406,7 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2' + raw,
             value: await bridge.BOND_AMOUNT(),
+            gasLimit: 6000000,
           }
         )
       ).wait();
@@ -409,7 +414,15 @@ describe('Bridge/RPC', async function () {
 
     it('submitSolution without bond', async () => {
       await assertRevert(
-        bridge.submitSolution(blockHash, solutionHash)
+        bridge.submitSolution(blockHash, solutionHash, { gasLimit: 6000000 })
+      );
+    });
+
+    it('submitSolution - wrong blockHash', async () => {
+      await assertRevert(
+        bridge.submitSolution('0x00000000000000000000000000000000000000000000000000000000000000cc', solutionHash,
+          { value: await bridge.BOND_AMOUNT(), gasLimit: 6000000 }
+        )
       );
     });
 
@@ -421,7 +434,7 @@ describe('Bridge/RPC', async function () {
 
     it('finalizeSolution throw', async () => {
       await assertRevert(
-        bridge.finalizeSolution(blockHash, solution)
+        bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 })
       );
     });
 
@@ -467,7 +480,8 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0xf240f7c3' + raw,
-            value: '1',
+            value: 1,
+            gasLimit: 6000000,
           }
         )
       );
