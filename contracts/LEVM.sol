@@ -218,12 +218,6 @@ contract LEVM is Inventory {
     // check inSize/inOffset bounds
     // if FALSE return ''
 
-    if (functionSig == FUNC_SIG_BALANCE_OF) {
-      address owner = address(uint160(memLoad(inOffset + 4)));
-
-      return abi.encodePacked(_balanceOf(target, owner));
-    }
-
     if (functionSig == FUNC_SIG_APPROVE) {
       address spender = address(uint160(memLoad(inOffset + 4)));
       uint value = memLoad(inOffset + 4 + 32);
@@ -231,13 +225,6 @@ contract LEVM is Inventory {
       setAllowance(target, caller, spender, value);
       // TODO
       return abi.encodePacked(true);
-    }
-
-    if (functionSig == FUNC_SIG_ALLOWANCE) {
-      address owner = address(uint160(memLoad(inOffset + 4)));
-      address spender = address(uint160(memLoad(inOffset + 4 + 32 )));
-
-      return abi.encodePacked(_allowance(target, owner, spender));
     }
 
     if (functionSig == FUNC_SIG_TRANSFER) {

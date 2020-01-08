@@ -65,6 +65,8 @@ module.exports = class Server {
   async onPost (req, resp, body) {
     const method = body.method;
 
+    this.log(method);
+
     if (method.startsWith('debug') && !this.bridge.debugMode) {
       body.error = {
         code: -32601,

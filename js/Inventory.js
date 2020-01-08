@@ -335,25 +335,21 @@ module.exports = class Inventory {
       this._hashERC20(target, from, e.value);
 
       // now update `to`
-      if (to === ADDRESS_ZERO) {
-        this._incrementExit(target, from, want);
+      const oldEntry = this.getERC20(target, to);
+      if (oldEntry) {
+        const val = BigInt(oldEntry.value) + BigInt(tokenId);
+        oldEntry.value = `0x${val.toString(16).padStart(64, '0')}`;
+        this._hashERC20(target, to, oldEntry.value);
       } else {
-        const oldEntry = this.getERC20(target, to);
-        if (oldEntry) {
-          const val = BigInt(oldEntry.value) + BigInt(tokenId);
-          oldEntry.value = `0x${val.toString(16).padStart(64, '0')}`;
-          this._hashERC20(target, to, oldEntry.value);
-        } else {
-          const newEntry = {
-            address: target,
-            owner: to,
-            value: tokenId,
-            isERC20: true,
-            data: UINT_ZERO,
-          };
-          this._hashERC20(target, to, newEntry.value);
-          this.addToken(newEntry);
-        }
+        const newEntry = {
+          address: target,
+          owner: to,
+          value: tokenId,
+          isERC20: true,
+          data: UINT_ZERO,
+        };
+        this._hashERC20(target, to, newEntry.value);
+        this.addToken(newEntry);
       }
       return UINT_ONE;
     } else {
