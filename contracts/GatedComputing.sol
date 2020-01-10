@@ -43,6 +43,51 @@ contract GatedComputing {
           // JUMPDEST
           mstore8(memOff, 0x5b)
         }
+        // LOG0
+        case 0xa0 {
+          // POP
+          mstore8(memOff, 80)
+          mstore8(add(memOff, 1), 80)
+          off := add(memOff, 2)
+        }
+        // LOG1
+        case 0xa1 {
+          // POP
+          mstore8(memOff, 80)
+          mstore8(add(memOff, 1), 80)
+          mstore8(add(memOff, 2), 80)
+          off := add(memOff, 3)
+        }
+        // LOG2
+        case 0xa2 {
+          // POP
+          mstore8(memOff, 80)
+          mstore8(add(memOff, 1), 80)
+          mstore8(add(memOff, 2), 80)
+          mstore8(add(memOff, 3), 80)
+          off := add(memOff, 4)
+        }
+        // LOG3
+        case 0xa3 {
+          // POP
+          mstore8(memOff, 80)
+          mstore8(add(memOff, 1), 80)
+          mstore8(add(memOff, 2), 80)
+          mstore8(add(memOff, 3), 80)
+          mstore8(add(memOff, 4), 80)
+          off := add(memOff, 5)
+        }
+        // LOG4
+        case 0xa4 {
+          // POP
+          mstore8(memOff, 80)
+          mstore8(add(memOff, 1), 80)
+          mstore8(add(memOff, 2), 80)
+          mstore8(add(memOff, 3), 80)
+          mstore8(add(memOff, 4), 80)
+          mstore8(add(memOff, 5), 80)
+          off := add(memOff, 6)
+        }
         // CALL
         case 241 {
           // TODO: allow specific precompiles and supported calls,

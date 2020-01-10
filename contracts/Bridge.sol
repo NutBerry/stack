@@ -16,11 +16,11 @@ contract Bridge is _Bridge {
     uint256 pending = highestPendingBlock + 1;
     bytes32 blockHash;
     assembly {
-      mstore(0x80, caller())
-      mstore(0xa0, token)
-      mstore(0xc0, amountOrId)
-      mstore(0xe0, pending)
-      blockHash := keccak256(0x80, 128)
+      mstore(0x80, pending)
+      mstore(0xa0, shl(96, caller()))
+      mstore(0xb4, shl(96, token))
+      mstore(0xc8, amountOrId)
+      blockHash := keccak256(0x80, 104)
 
       // transferFrom
       let sig := shl(224, 0x23b872dd)
@@ -70,16 +70,14 @@ contract Bridge is _Bridge {
   function submitBlock () public payable {
     _checkBond();
 
-    // Special blocks like deposits-blocks starts with a zero byte.
+    // Submitting special blocks like deposits-blocks is not allowed.
     // Revert if someone is trying to submit such a block.
-    assembly {
-      if iszero(byte(0, calldataload(4))) {
-        revert(0, 0)
-      }
+    if (_isSpecialBlock()) {
+      revert();
     }
 
-    bytes32 blockHash = _blockHash();
     uint256 pending = highestPendingBlock + 1;
+    bytes32 blockHash = _blockHash(pending);
     blocks[blockHash] = pending;
     highestPendingBlock = pending;
 
@@ -108,7 +106,7 @@ contract Bridge is _Bridge {
 
   /// @dev Challenge a solution
   function dispute () public payable {
-    bytes32 blockHash = _blockHash();
+    bytes32 blockHash = _blockHash(currentBlock + 1);
 
     _checkBond();
     _checkBlock(blockHash);
@@ -181,7 +179,7 @@ contract Bridge is _Bridge {
   /// @dev direct replay the next pending block
   function replay () public {
     // validate the data
-    bytes32 blockHash = _blockHash();
+    bytes32 blockHash = _blockHash(currentBlock + 1);
 
     _resolveBlock(blockHash);
     _validateBlock();

@@ -171,6 +171,7 @@ describe('Bridge/RPC', async function () {
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
 
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() - 1, 'balance of Alice');
+      assert.equal(tx.logs.length, 2, 'logs emitted');
     });
 
     it('unknown method', async () => {
@@ -355,9 +356,14 @@ describe('Bridge/RPC', async function () {
     });
 
     const raw = '0123456789abcdef';
-    const blockHash = ethers.utils.keccak256('0x' + raw);
     const solution = Buffer.alloc(64);
     const solutionHash = ethers.utils.keccak256(solution);
+    let blockHash;
+
+    before(async () => {
+      const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
+      blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
+    });
 
     it('submitBlock should throw - wrong BOND_AMOUNT', async () => {
       await assertRevert(
@@ -377,7 +383,7 @@ describe('Bridge/RPC', async function () {
         rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
-            data: '0x25ceb4b2001122334455',
+            data: '0x25ceb4b2' + (new Array(72).fill('cc')).join(''),
             value: await bridge.BOND_AMOUNT(),
             gasLimit: 6000000,
           }
@@ -452,9 +458,14 @@ describe('Bridge/RPC', async function () {
 
   describe('Invalid Block & dispute', async () => {
     const raw = '0123456789abcdef';
-    const blockHash = ethers.utils.keccak256('0x' + raw);
     const solution = Buffer.alloc(64);
     const solutionHash = ethers.utils.keccak256(solution);
+    let blockHash;
+
+    before(async () => {
+      const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
+      blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
+    });
 
     it('submitBlock should not throw', async () => {
       const tx = await (

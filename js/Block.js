@@ -7,9 +7,7 @@ const NutBerryRuntime = require('./NutBerryRuntime.js');
 const Utils = require('./Utils.js');
 
 module.exports = class Block {
-  constructor (prevBlock, bridge) {
-    // TODO: add support for chainId
-    this.chainId = 0;
+  constructor (prevBlock) {
     // previous block - if applicable
     this.prevBlock = prevBlock;
     // the blockHash - only available if this block was submitted to the Bridge.
@@ -77,15 +75,18 @@ module.exports = class Block {
     const expectedNonce = this.nonces[tx.from] | 0;
 
     if (this.validateTransaction(tx, expectedNonce)) {
-      const returnValue = await this.executeTx(tx);
+      const { errno, returnValue, logs } = await this.executeTx(tx);
 
       this.log(`${tx.from}:${tx.nonce}:${tx.hash}`);
 
-      if (!returnValue) {
+      // TODO
+      // save transaction receipts for reverted transactions
+      if (errno !== 0) {
         this.log('invalid tx', tx.hash);
         return;
       }
 
+      tx.logs = logs;
       // TODO: BigInt
       this.nonces[tx.from] = tx.nonce + 1;
       this.inventory.trackNonce(tx.from, tx.nonce + 1);
@@ -103,7 +104,7 @@ module.exports = class Block {
       return false;
     }
 
-    if (tx.chainId !== this.chainId) {
+    if (tx.chainId !== 0) {
       this.log('invalid chainId');
       return false;
     }
@@ -127,7 +128,13 @@ module.exports = class Block {
   }
 
   async dryExecuteTx (tx) {
-    return (await this.executeTx(tx, true)) || '0x';
+    const { errno, returnValue, logs } = await this.executeTx(tx, true);
+
+    if (errno !== 0) {
+      return '0x';
+    }
+
+    return returnValue;
   }
 
   async executeTx (tx, dry) {
@@ -173,10 +180,13 @@ module.exports = class Block {
       if (state.errno !== 0) {
         // TODO: revert state once we support arbitrary contracts
         this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);
-        return '';
       }
 
-      return `0x${state.returnValue.toString('hex')}`;
+      return {
+        errno: state.errno,
+        returnValue: `0x${state.returnValue.toString('hex')}`,
+        logs: state.logs,
+      };
     }
 
     // not a contract
@@ -185,7 +195,14 @@ module.exports = class Block {
     const to = '0x0000000000000000000000000000000000000000';
     const target = tx.to.toLowerCase();
     const data = tx.data.replace('0x', '');
-    const res = customEnvironment.handleCall(msgSender, to, target, data) || '';
+    const res = customEnvironment.handleCall(msgSender, to, target, data) || '0x';
+    const errno = res === '0x' ? 7 : 0;
+    // TODO
+    return {
+      errno: errno,
+      returnValue: res,
+      logs: [],
+    };
 
     return res;
   }
@@ -229,23 +246,11 @@ module.exports = class Block {
       let tx = this.transactions[hash];
       // rsv and so on
       tx = ethers.utils.parseTransaction(tx.raw);
-      const nonce = tx.nonce;
 
       this.log('Preparing ' + tx.from + ':' + tx.nonce + ':' + tx.hash);
 
-      const encoded = ethers.utils.serializeTransaction(
-        {
-          to: tx.to,
-          data: tx.data,
-          nonce: tx.nonce,
-          chainId: tx.networkId,
-        }
-      );
-
+      const encoded = Utils.encodeTx(tx);
       transactions.push(encoded.replace('0x', ''));
-      transactions.push(tx.r.replace('0x', ''));
-      transactions.push(tx.s.replace('0x', ''));
-      transactions.push(tx.v.toString(16).padStart(2, '0'));
     }
 
     const rawData = transactions.join('');
@@ -265,18 +270,17 @@ module.exports = class Block {
     this.log(
       {
         total: hashes.length,
-        submitted: transactions.length / 4,
+        submitted: transactions.length,
       }
     );
 
-    const blockHash = ethers.utils.keccak256('0x' + rawData);
+    // TODO: blockHash/number might not be the same if additional blocks are submitted in the meantime
+    const blockHash = ethers.utils.keccak256('0x' + this.number.toString(16).padStart(64, '0') + rawData);
 
     return blockHash;
   }
 
   /// @dev Computes the solution for this Block.
-  // TODO: Computational expensive tasks like this
-  // should run in its own isolate or separate process.
   async computeSolution (bridge, doItWrong) {
     this.log('Block.computeSolution');
 

@@ -40,16 +40,18 @@ contract _Bridge is LEVM {
   event NewDispute(bytes32 blockHash);
   event Slashed(bytes32 blockHash, bool solverWon);
 
-  function _blockHash () internal pure returns (bytes32 blockHash) {
+  function _blockHash (uint256 nonce) internal pure returns (bytes32 blockHash) {
     assembly {
-      let tmp := mload(0x40)
       let size := sub(calldatasize(), 4)
       // MAX_BLOCK_SIZE
       if or(gt(size, 8096), iszero(size)) {
         revert(0, 0)
       }
-      calldatacopy(0, 4, size)
-      blockHash := keccak256(0, size)
+
+      mstore(0, nonce)
+      let tmp := mload(0x40)
+      calldatacopy(32, 4, size)
+      blockHash := keccak256(0, add(size, 32))
       mstore(0x40, tmp)
       mstore(0x60, 0)
     }

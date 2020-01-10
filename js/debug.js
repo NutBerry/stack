@@ -25,7 +25,7 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
     );
     let contract = await _factory.deploy();
     let tx = await contract.deployTransaction.wait();
-    let defaultContractAddr = contract.address;
+    let gatedComputingAddr = contract.address;
 
 
     const artifact = require('./../build/contracts/Bridge.json');
@@ -41,7 +41,7 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
     while (true) {
       let n = bytecode.replace(
         'abcdef0123456789abcdef0123456789abcdef01',
-        defaultContractAddr.replace('0x', '').toLowerCase()
+        gatedComputingAddr.replace('0x', '').toLowerCase()
       );
       if (bytecode === n) {
         break;
@@ -64,7 +64,7 @@ Contract: ${artifact.contractName}
   Deployer: ${tx.from}
   Gas used: ${tx.cumulativeGasUsed.toString()}
   Gas fee in Ether: ${ethers.utils.formatUnits(contract.deployTransaction.gasPrice.mul(tx.cumulativeGasUsed), 'ether')}
-  Default contract: ${defaultContractAddr}
+  Gated Computing contract: ${gatedComputingAddr}
   \n`);
 
     return contract;
