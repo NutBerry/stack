@@ -70,7 +70,7 @@ module.exports = class Methods {
       // TODO: implement timestamp
       timestamp: '0x0',
       // TODO: implement block nonce
-      nonce: ZERO_NONCE,
+      nonce: block.nonce || ZERO_NONCE,
       difficulty: '0x0',
       gasLimit: '0x0',
       gasUsed: '0x0',
@@ -104,19 +104,46 @@ module.exports = class Methods {
       return null;
     }
 
+    const transactionIndex = `0x${txIndex.toString(16)}`;
+    const blockHash = block.hash || ZERO_HASH;
+    const blockNumber = `0x${block.number.toString(16)}`;
+    const logs = [];
+
+    if (tx.logs) {
+      const logLen = tx.logs.length;
+
+      for (let i = 0; i < logLen; i++) {
+        const logIndex = `0x${i.toString(16)}`;
+        const log = tx.logs[i];
+        const obj = {
+          transactionLogIndex: logIndex,
+          transactionIndex,
+          blockNumber,
+          transactionHash: txHash,
+          // TODO: take `address` from the `log`, once supported
+          address: tx.to,
+          topics: log.topics,
+          data: log.data,
+          logIndex,
+          blockHash,
+        };
+        logs.push(obj);
+      }
+    }
+
     // TODO: proper receipts
     const status = block === bridge.currentBlock ? '0x1' : '0x2';
     return {
       transactionHash: txHash,
-      transactionIndex: `0x${txIndex.toString(16)}`,
-      blockHash: block.hash || ZERO_HASH,
-      blockNumber: `0x${block.number.toString(16)}`,
+      transactionIndex,
+      blockHash,
+      blockNumber,
       from: tx.from,
       to: tx.to,
       cumulativeGasUsed: '0x00',
       gasUsed: '0x00',
       contractAddress: null,
-      logs: [],
+      logs: logs,
       logsBloom: ZERO_LOGS_BLOOM,
       status,
     };
@@ -133,13 +160,13 @@ module.exports = class Methods {
     return {
       raw: tx.raw,
       from: tx.from,
-      value: tx.value,
+      value: '0x0',
       to: tx.to,
-      hash: tx.hash,
+      hash: txHash,
       data: tx.data,
       nonce: '0x' + tx.nonce.toString(16),
-      gasPrice: tx.gasPrice,
-      gasLimit: tx.gasLimit,
+      gasPrice: '0x0',
+      gasLimit: '0x0',
     };
   }
 
@@ -161,7 +188,6 @@ module.exports = class Methods {
 
   static async 'eth_getLogs' (obj, bridge) {
     // TODO
-    // params
     // fromBlock
     // toBlock
     // address

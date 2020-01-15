@@ -9,6 +9,11 @@ import './ERC1949.sol';
 contract TestContract {
   address constant SPENDER_ADDR = 0xF3beAC30C498D9E26865F34fCAa57dBB935b0D74;
 
+  event BlockBeacon();
+  event TestEvent(address indexed addr, uint256 val);
+  event TestEvent2(address indexed addr, uint256 indexed val);
+  event TestEvent3(address indexed addr, uint256 indexed val, bool indexed);
+
   function test (address tokenAddr, address[] memory receivers, uint[] memory amounts) public {
     ERC20 token = ERC20(tokenAddr);
     ERC721 nft = ERC721(tokenAddr);
@@ -33,6 +38,10 @@ contract TestContract {
     balance = token.balanceOf(address(this)) - 1;
     token.transfer(alice, balance);
     token.transfer(address(uint160(address(this)) - 1), 1);
+    emit TestEvent(bob, balance);
+    emit TestEvent2(bob, balance);
+    emit TestEvent3(bob, balance, true);
+    emit BlockBeacon();
   }
 
   function testERC721 (address tokenAddr, address alice, address bob, uint256 tokenId) public {

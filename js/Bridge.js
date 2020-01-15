@@ -42,7 +42,7 @@ module.exports = class Bridge {
       this.log('Warning: No private key - Using random wallet');
       this.signer = ethers.Wallet.createRandom().connect(this.rootProvider);
     }
-    // TODO
+    // TODO - remove this
     global.provider = this.rootProvider;
 
     this.contract = new ethers.Contract(options.contract, BRIDGE_ABI, this.signer);
@@ -223,15 +223,14 @@ module.exports = class Bridge {
   }
 
   async onDeposit (data) {
-    const block = new Block(this.blocks[this.blocks.length - 1], this);
-    const pending = block.number;
+    const block = new Block(this.blocks[this.blocks.length - 1]);
+    const pending = block.number.toString(16).padStart(64, '0');
     const raw =
       '0x' +
-      data.owner.replace('0x', '').padStart(64, '0') +
-      data.address.replace('0x', '').padStart(64, '0') +
-      data.value.replace('0x', '') +
-      pending.toString(16).padStart(64, '0');
-    const blockHash = ethers.utils.keccak256(raw);
+      data.owner.replace('0x', '') +
+      data.address.replace('0x', '') +
+      data.value.replace('0x', '');
+    const blockHash = ethers.utils.keccak256('0x' + pending + raw.replace('0x', ''));
     block.addDeposit(data, this);
 
     block.raw = raw;
@@ -250,122 +249,55 @@ module.exports = class Bridge {
 
   async onBlockBeacon (tx) {
     const data = tx.data;
-    const block = new Block(this.blocks[this.blocks.length - 1], this);
+    const block = new Block(this.blocks[this.blocks.length - 1]);
     const raw = '0x' + data.substring(10, data.length);
-    const blockHash = ethers.utils.keccak256(raw);
+    const blockHash = ethers.utils.keccak256(
+      '0x' + block.number.toString(16).padStart(64, '0') + raw.replace('0x', '')
+    );
 
     block.raw = raw;
     block.hash = blockHash;
 
     this.log(`new Block ${block.number}/${block.hash}`);
 
-    // TODO: validate and skip malformed transactions
-    // 0x + function sig
-    let offset = 10;
+    const buf = Utils.toUint8Array(raw);
+    let offset = 0;
     while (true) {
-      if (offset >= data.length) {
+      if (offset >= buf.length) {
         break;
       }
 
-      let nonce;
-      let to;
-      let digest;
-      let callData;
-      let txData;
-
-      for (let i = 0; i <= 6; i++) {
-        let lengthOfData = 0;
-        let lengthField = 2;
-
-        function _parseInt (offset, length) {
-          let result = 0;
-          for (let i = 0; i < length; i += 2) {
-            let v = data.substring(offset + i, offset + i + 2);
-            v = parseInt(v, 16);
-            result = v + (result * 256);
-          }
-          return result * 2;
-        }
-
-        let val = parseInt(data.substring(offset, offset + 2), 16);
-
-        if (val > 0xf7) {
-          let len = (val - 0xf7) * 2;
-          lengthOfData = _parseInt(offset + 2, len);
-          lengthField += len;
-        } else if (val > 0xbf) {
-          let len = (val - 0xc0) * 2;
-          lengthOfData = len;
-        } else if (val > 0xb7) {
-          let len = (val - 0xb7) * 2;
-          lengthOfData = _parseInt(offset + 2, len);
-          lengthField += len;
-        } else if (val > 0x7f) {
-          let len = (val - 0x80) * 2;
-          lengthOfData = len;
-        } else {
-          lengthOfData = 2;
-          lengthField = 0;
-        }
-
-        if (i === 0) {
-          let txlen = lengthOfData + lengthField;
-
-          txData = data.substring(offset, offset + txlen);
-          digest = ethers.utils.keccak256(Buffer.from(txData, 'hex'));
-          offset += lengthField;
-          continue;
-        }
-
-        offset += lengthField;
-
-        if (i === 1) {
-          if (lengthOfData === 0) {
-            nonce = 0;
-          } else {
-            nonce = data.substring(offset, offset + lengthOfData);
-          }
-        }
-
-        // gasPrice, gasLimit, value
-        // if (i === 2 || i === 3 || i === 5) {
-        // }
-
-        if (i === 4) {
-          to = data.substring(offset, offset + lengthOfData);
-        }
-
-        if (i === 6) {
-          callData = data.substring(offset, offset + lengthOfData);
-        }
-        offset += lengthOfData;
-      }
-
-      const r = '0x' + data.substring(offset, offset += 64);
-      const s = '0x' + data.substring(offset, offset += 64);
-      const v = '0x' + data.substring(offset, offset += 2);
       try {
+        let { nonce, to, calldata, len } = Utils.decode(buf, offset);
+
+        nonce = Utils.bufToHex(nonce, 0, nonce.length);
+        to = Utils.bufToHex(to, 0, 20);
+        calldata = Utils.bufToHex(calldata, 0, calldata.length);
+        offset += len;
+
+        const r = Utils.bufToHex(buf, offset, offset += 32);
+        const s = Utils.bufToHex(buf, offset, offset += 32);
+        const v = Utils.bufToHex(buf, offset, offset += 1);
+        const tx = {
+          to,
+          // TODO: use BigInt/hex-string
+          nonce: parseInt(nonce, 16),
+          data: calldata,
+          gasLimit: '0x00',
+          gasPrice: '0x00',
+          value: '0x00',
+          chainId: 0,
+        };
+        const unsigned = ethers.utils.serializeTransaction(tx);
+        const signed = ethers.utils.serializeTransaction(tx, { r, s, v });
+        const digest = ethers.utils.keccak256(unsigned);
         const from = ethers.utils.recoverAddress(
           Buffer.from(digest.replace('0x', ''), 'hex'), { r, s, v }
         );
 
-        const tx = {
-          from: from.toLowerCase(),
-          to: '0x' + to,
-          // TODO: use BigInt/hex-string
-          nonce: parseInt(nonce, 16),
-          data: '0x' + callData,
-          chainId: 0,
-          gasPrice: '0x00',
-          gasLimit: '0x00',
-          value: '0x00',
-        };
-        const rawHexStr = ethers.utils.serializeTransaction(
-          { to: tx.to, data: tx.data, nonce: tx.nonce, chainId: this.chainId },
-          { r, s, v }
-        );
-        tx.hash = ethers.utils.keccak256(rawHexStr);
-        tx.raw = rawHexStr;
+        tx.hash = ethers.utils.keccak256(signed);
+        tx.from = from.toLowerCase();
+        tx.raw = signed;
 
         await block.addTransaction(tx);
       } catch (e) {

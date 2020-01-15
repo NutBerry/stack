@@ -4,7 +4,7 @@ import './Inventory.sol';
 
 contract LEVM is Inventory {
   // needs to be replaced with the deployed address
-  address constant DEFAULT_CONTRACT_ADDRESS = 0xabCDeF0123456789AbcdEf0123456789aBCDEF01;
+  address constant GATED_COMPUTING_ADDRESS = 0xabCDeF0123456789AbcdEf0123456789aBCDEF01;
 
   bytes4 constant internal FUNC_SIG_BALANCE_OF = hex'70a08231';
   bytes4 constant internal FUNC_SIG_APPROVE = hex'095ea7b3';
@@ -17,183 +17,178 @@ contract LEVM is Inventory {
   // bytes4 constant internal FUNC_SIG_WRITE_DATA = hex'a983d43f';
   // bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
 
-  /// @dev Internal helper for parsing RLP encoded transactions from calldata.
-  /// Reverts if the transaction is malformed
-  /// TODO: try to skip a malformed transaction instead of revert()
+  /// @dev Internal helper for parsing encoded transactions from calldata.
   function parseTx (
     uint256 offset,
     uint256 boundary,
     uint256[5] memory params
-  ) internal view returns (uint256) {
+  ) internal returns (uint256) {
     if (offset >= boundary) {
       return offset;
     }
 
     assembly {
-      function parseInt (offset, length, boundary) -> result {
-        if lt(add(offset, length), boundary) {
-          for { let i := 0 } lt(i, length) { i := add(i, 1) } {
-            let v := calldataload(add(offset, i))
-            v := byte(0, v)
-            result := add(mul(result, 256), v)
-          }
+      function encodeRLP (valuePtr, byteLength, memPtr) -> res {
+        // encode data
+        if iszero(byteLength) {
+          mstore8(memPtr, 0x80)
+          memPtr := add(memPtr, 1)
+          res := 1
         }
+
+        let callDataByte := byte(0, calldataload(valuePtr))
+        if and( eq(byteLength, 1), lt(callDataByte, 0x80) ) {
+          mstore8(memPtr, callDataByte)
+          memPtr := add(memPtr, 1)
+          res := 1
+        }
+        // else
+        if and( iszero(res), lt(byteLength, 56) ) {
+          mstore8(memPtr, add(0x80, byteLength))
+          memPtr := add(memPtr, 1)
+          calldatacopy(memPtr, valuePtr, byteLength)
+          memPtr := add(memPtr, byteLength)
+        }
+        // else
+        if gt(byteLength, 55) {
+          let length := 1
+          if gt(byteLength, 0xff) {
+            length := 2
+          }
+
+          mstore8(memPtr, add(0xb7, length))
+          memPtr := add(memPtr, 1)
+          memPtr := add(memPtr, length)
+
+          let _v := byteLength
+          for { let l := 0 } lt(l, length) { l := add(l, 1) } {
+            mstore8(sub(memPtr, add(l, 1)), _v)
+            _v := shr(8, _v)
+          }
+
+          calldatacopy(memPtr, valuePtr, byteLength)
+          memPtr := add(memPtr, byteLength)
+        }
+
+        res := memPtr
       }
 
-      for { let i := 0 } lt(i, 7) { i := add(i, 1) } {
-        let lengthOfData := 0
-        let lengthField := 1
-        let val := byte(0, calldataload(offset))
-        let ok := 0
+      // reserve 3 bytes for final transaction length encoding
+      let memPtr := add(mload(0x40), 3)
 
-        if gt(val, 0xf7) {
-          let len := sub(val, 0xf7)
-          lengthOfData := parseInt(add(offset, 1), len, boundary)
-
-          if iszero(lengthOfData) {
-            i := 0xf
-          }
-
-          lengthField := add(lengthField, len)
-
-          ok := 1
-        }
-
-        if iszero(ok) {
-          if gt(val, 0xbf) {
-            let len := sub(val, 0xc0)
-            lengthOfData := len
-
-            ok := 1
-          }
-        }
-
-        if iszero(ok) {
-          if gt(val, 0xb7) {
-            let len := sub(val, 0xb7)
-            lengthOfData := parseInt(add(offset, 1), len, boundary)
-
-            if iszero(lengthOfData) {
-              i := 0xf
-            }
-
-            lengthField := add(lengthField, len)
-
-            ok := 1
-          }
-        }
-
-        if iszero(ok) {
-          if gt(val, 0x7f) {
-            let len := sub(val, 0x80)
-            lengthOfData := len
-
-            ok := 1
-          }
-        }
-
-        if iszero(ok) {
-          lengthOfData := 1
-          lengthField := 0
-        }
-
-        if gt(add(offset, add(lengthField, lengthOfData)), boundary) {
-          i := 0xf
-        }
-
-        // each transaction should have 6 fields
-        // nonce
-        // gasPrice
-        // gasLimit
-        // to
-        // value
-        // data
-
-        if iszero(i) {
-          let txlen := add(lengthOfData, lengthField)
-
-          let ptr := mload(0x40)
-          // dirty memory. We assume functions clear the memory slots before using them.
-          calldatacopy(ptr, offset, txlen)
-          let digest := keccak256(ptr, txlen)
-          mstore(0, digest)
-        }
-
-        offset := add(offset, lengthField)
-
-        if eq(i, 1) {
-          let nonce := 0
-
-          if gt(lengthOfData, 32) {
-            //revert(0, 0)
-          }
-
-          if gt(lengthOfData, 0) {
-            // nonce
-            nonce := calldataload(offset)
-            let shiftBytes := sub(32, lengthOfData)
-            nonce := shr(mul(shiftBytes, 8), nonce)
-          }
-
-          // set nonce
-          mstore(add(params, 64), nonce)
-        }
-
-        // 2 = gasPrice, 3 = gasLimit, 5 = value
-        if or(eq(i, 2), or(eq(i, 3), eq(i, 5))) {
-          if or(xor(lengthOfData, 0), xor(lengthField, 1)) {
-            //revert(0, 0)
-          }
-        }
-
-        if eq(i, 4) {
-          if xor(lengthOfData, 20) {
-            //revert(0, 0)
-          }
-          // to
-          let to := calldataload(offset)
-          to := shr(96, to)
-
-          mstore(add(params,  32), to)
-        }
-
-        if eq(i, 6) {
-          // callDataOffset
-          mstore(add(params,  96), offset)
-          // callDataLength
-          mstore(add(params,  128), lengthOfData)
-        }
-
-        if gt(i, 0) {
-          offset := add(offset, lengthOfData)
-        }
-
-        if eq(i, 0xf) {
-          offset := 0
-        }
-      }
-
-      if gt(offset, 0) {
-        if gt(add(offset, 65), boundary) {
-          // revert(0, 0)
-        }
-
-        let backup := mload(0x40)
-
-        calldatacopy(0x40, offset, 64)
-        offset := add(offset, 64)
-        let v := calldataload(offset)
-        v := byte(0, v)
-        mstore(0x20, v)
+      {
+        let nonce := byte(0, calldataload(offset))
+        let NONCE_OFFSET := offset
         offset := add(offset, 1)
+        let nonceSize := 0
 
-        // ecrecover
-        let success := staticcall(gas(), 0x1, 0, 128, 0, 0x20)
-        let from := mload(0)
-        mstore(params, from)
-        mstore(0x40, backup)
-        mstore(0x60, 0)
+        if gt(nonce, 0) {
+          nonceSize := 1
+        }
+
+        if gt(nonce, 0xde) {
+          let shiftBytes := sub(0xff, nonce)
+          nonceSize := shiftBytes
+          NONCE_OFFSET := offset
+          nonce := calldataload(offset)
+          offset := add(offset, shiftBytes)
+          shiftBytes := sub(32, shiftBytes)
+          nonce := shr(mul(shiftBytes, 8), nonce)
+        }
+        mstore(add(params, 64), nonce)
+
+        // encode nonce
+        memPtr := encodeRLP(NONCE_OFFSET, nonceSize, memPtr)
       }
+
+      // gasPrice = 0
+      mstore8(memPtr, 0x80)
+      memPtr := add(memPtr, 1)
+      // gasLimit = 0
+      mstore8(memPtr, 0x80)
+      memPtr := add(memPtr, 1)
+      {
+        // to - 20 bytes
+        mstore8(memPtr, 0x94)
+        memPtr := add(memPtr, 1)
+
+        let to := shr(96, calldataload(offset))
+        mstore(memPtr, shl(96, to))
+        mstore(add(params, 32), to)
+        offset := add(offset, 20)
+
+        memPtr := add(memPtr, 20)
+      }
+      // value
+      mstore8(memPtr, 0x80)
+      memPtr := add(memPtr, 1)
+
+      {
+        let callDataSize := byte(0, calldataload(offset))
+        let callDataOffset := add(offset, 1)
+
+        if eq(callDataSize, 0xff) {
+          offset := add(offset, 1)
+          callDataSize := shr(240, calldataload(offset))
+          callDataOffset := add(offset, 2)
+          offset := add(callDataOffset, callDataSize)
+        }
+
+        if lt(callDataSize, 0xff) {
+          offset := add(callDataOffset, callDataSize)
+        }
+
+        mstore(add(params, 96), callDataOffset)
+        mstore(add(params, 128), callDataSize)
+
+        memPtr := encodeRLP(callDataOffset, callDataSize, memPtr)
+      }
+
+      let payloadLength := sub( sub(memPtr, mload(0x40) ), 3)
+
+      if gt(payloadLength, 55) {
+        let length := 1
+        if gt(payloadLength, 0xff) {
+          length := 2
+        }
+
+        memPtr := sub( add(mload(0x40), 3), add(length, 1))
+        let backup := memPtr
+        mstore8(memPtr, add(0xf7, length))
+        memPtr := add(memPtr, 1)
+        memPtr := add(memPtr, length)
+
+        let _v := payloadLength
+        for { let l := 0 } lt(l, length) { l := add(l, 1) } {
+          mstore8(sub(memPtr, add(l, 1)), _v)
+          _v := shr(8, _v)
+        }
+
+        memPtr := backup
+        payloadLength := add(payloadLength, add(length, 1))
+      }
+
+      if lt(payloadLength, 56) {
+        memPtr := add(mload(0x40), 2)
+        mstore8(memPtr, add(0xc0, payloadLength))
+        payloadLength := add(payloadLength, 1)
+      }
+
+      // digest
+      mstore(memPtr, keccak256(memPtr, payloadLength))
+      // signature
+      calldatacopy(add(memPtr, 64), offset, 64)
+      offset := add(offset, 64)
+      // v
+      mstore(add(memPtr, 32), byte(0, calldataload(offset)))
+      offset := add(offset, 1)
+      // ecrecover
+      let success := staticcall(gas(), 0x1, memPtr, 128, 0, 32)
+      if iszero(success) {
+        mstore(0, 0)
+      }
+      let from := mload(0)
+      mstore(params, from)
     }
 
     return offset;
@@ -298,39 +293,39 @@ contract LEVM is Inventory {
       // TODO
       // deployment limit 4mil gas
       success := call(gas(), gated, 0, memPtr, codeSize, 12,  20)
-      if iszero(success) {
-        // can't deploy
-        revert(0, 0)
-
+      if eq(success, 1) {
+        let patchedAddress := mload(0)
+        // TODO
+        // 2 mil execution limit?
+        // call the patched contract
+        success := callcode(gas(), patchedAddress, 0, add(callData, 32), mload(callData), 0,  0)
       }
-      let patchedAddress := mload(0)
-      // TODO
-      // 2 mil execution limit?
-      // call the patched contract
-      success := callcode(gas(), patchedAddress, 0, add(callData, 32), mload(callData), 0,  0)
     }
 
     return success;
   }
 
-  /// @dev Internal function for executing(replay) transactions.
-  function _validateBlock () internal {
-    bool isSpecialBlock = false;
+  /// @dev Internal function that checks if calldata is a special block
+  function _isSpecialBlock () internal returns (bool ret) {
     assembly {
-      if iszero(byte(0, calldataload(4))) {
-        isSpecialBlock := 1
+      if eq(calldatasize(), 76) {
+        ret := 1
       }
     }
+  }
+
+  /// @dev Internal function for executing(replay) transactions.
+  function _validateBlock () internal {
     // a deposit-block
-    if (isSpecialBlock) {
+    if (_isSpecialBlock()) {
       // TODO: check for overflow?
       address token;
       address owner;
       uint256 value;
       assembly {
-        owner := calldataload(4)
-        token := calldataload(36)
-        value := calldataload(68)
+        owner := shr(96, calldataload(4))
+        token := shr(96, calldataload(24))
+        value := calldataload(44)
       }
       uint256 newValue = getERC20(token, owner);
       newValue += value;
@@ -359,6 +354,12 @@ contract LEVM is Inventory {
       }
 
       address from = address(uint160(params[0]));
+
+      if (from == address(0)) {
+        // invalid sig
+        continue;
+      }
+
       address to = address(uint160(params[1]));
       uint256 nonce = params[2];
       uint256 calldataOffset = params[3];
@@ -396,7 +397,7 @@ contract LEVM is Inventory {
           // FROM
           sstore(0xcc, from)
         }
-        bool success = _deployAndCall(DEFAULT_CONTRACT_ADDRESS, to, c);
+        bool success = _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
         if (!success) {
           continue;
         }

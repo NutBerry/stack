@@ -7,12 +7,44 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
     const runState = await super.initRunState(obj);
 
     runState.customEnvironment = obj.customEnvironment;
+    runState.logs = [];
 
     return runState;
   }
 
   async handleEXTCODESIZE (runState) {
     // this is replaced by JUMPDEST in the patcher
+  }
+
+  async handleLOG (runState) {
+    const val = (runState.opCode - 0xa0) + 2;
+
+    const args = runState.stack.splice(runState.stack.length - val);
+    const offset = args.pop().toNumber();
+    const len = args.pop().toNumber();
+
+    let ll = len;
+    if (ll > runState.memory.length) {
+      ll = runState.memory.length;
+    }
+
+    let data = '0x';
+    for (let i = 0; i < ll; i++) {
+      data += runState.memory[offset + i].toString(16).padStart(2, '0');
+    }
+    data = data.padEnd((len * 2) + 2, '0');
+
+    const topics = [];
+    while (args.length) {
+      topics.push('0x' + args.pop().toString(16).padStart(64, '0'));
+    }
+
+    // TODO: add `address`
+    const obj = {
+      topics,
+      data,
+    };
+    runState.logs.push(obj);
   }
 
   async interceptCall (runState, target, data) {
