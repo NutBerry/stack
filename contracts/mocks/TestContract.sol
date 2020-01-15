@@ -11,6 +11,8 @@ contract TestContract {
 
   event BlockBeacon();
   event TestEvent(address indexed addr, uint256 val);
+  event TestEvent2(address indexed addr, uint256 indexed val);
+  event TestEvent3(address indexed addr, uint256 indexed val, bool indexed);
 
   function test (address tokenAddr, address[] memory receivers, uint[] memory amounts) public {
     ERC20 token = ERC20(tokenAddr);
@@ -37,6 +39,8 @@ contract TestContract {
     token.transfer(alice, balance);
     token.transfer(address(uint160(address(this)) - 1), 1);
     emit TestEvent(bob, balance);
+    emit TestEvent2(bob, balance);
+    emit TestEvent3(bob, balance, true);
     emit BlockBeacon();
   }
 

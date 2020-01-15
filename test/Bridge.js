@@ -171,7 +171,7 @@ describe('Bridge/RPC', async function () {
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
 
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() - 1, 'balance of Alice');
-      assert.equal(tx.logs.length, 2, 'logs emitted');
+      assert.equal(tx.logs.length, 4, 'logs emitted');
     });
 
     it('unknown method', async () => {
