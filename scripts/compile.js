@@ -61,7 +61,7 @@ const compilerInput = {
   language: 'Solidity',
   sources: sources,
   settings: {
-    evmVersion: 'constantinople',
+    evmVersion: 'istanbul',
     optimizer: {
       enabled: true,
       runs: 2,
@@ -69,7 +69,6 @@ const compilerInput = {
     outputSelection: {
       '*': {
         '': [
-          'legacyAST',
           'ast',
         ],
         '*': [
