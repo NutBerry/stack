@@ -39,7 +39,7 @@ module.exports = class Methods {
   }
 
   static 'net_version' (obj, bridge) {
-    return bridge.chainId;
+    return 0;
   }
 
   static 'eth_gasPrice' (obj) {
