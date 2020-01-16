@@ -295,7 +295,11 @@ describe('Bridge/RPC', async function () {
 
       for (let i = 0; i < transactions.length; i++) {
         const tx = await provider.getTransaction(transactions[i]);
-        let tmp = await provider.send('eth_sendRawTransaction', [tx.raw]);
+        try {
+          await provider.send('eth_sendRawTransaction', [tx.raw]);
+        } catch (e) {
+          assert.equal(e.code, -32000, 'invalid transaction');
+        }
       }
 
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
