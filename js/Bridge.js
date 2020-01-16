@@ -7,9 +7,6 @@ const Utils = require('./Utils.js');
 
 const BRIDGE_ABI = require('./BridgeAbi.js');
 
-// TODO: make that configurable via options
-const UPDATE_CHECK_MS = 10000;
-
 // Deposit(address,address,uint256)
 const TOPIC_DEPOSIT = '0x5548c837ab068cf56a2c2479df0882a4922fd203edb7517321831d95078c5f62';
 // BlockBeacon()
@@ -23,17 +20,21 @@ const TOPIC_SLASHED = '0x6c48028c877b18aadc31081febd708cb0b41fb44ee7dd7bc071063b
 // DisputeNewRound(bytes32,uint256,bytes32,bytes32)
 const TOPIC_DISPUTE_ROUND = '0xfcde97ca95164905ad9a9101e2555288c5efe5d7ebf5537871b534b5b0a0254d';
 
+const FUNC_SIG_REPLAY = '0xb5b9cd7f';
+const FUNC_SIG_DISPUTE = '0xf240f7c3';
+
 /// @dev Glue for everything.
 module.exports = class Bridge {
   constructor (options) {
-    // TODO: implement support for chainId (cross-chain transaction replay attacks)
-    this.chainId = 0;
-    this.deposits = [];
-    this.blocks = [];
+    // TODO
+    // consider implementing support for chainId (cross-chain transaction replay attacks)
 
+    this.blocks = [];
+    this.currentBlock = new Block(null);
     this.debugMode = options.debugMode ? true : false;
     this.badNodeMode = options.badNodeMode ? true : false;
     this.eventCheckMs = options.eventCheckMs || 1000;
+    this.updateCheckMs = options.updateCheckMs || 10000;
 
     this.rootProvider = new ethers.providers.JsonRpcProvider(options.rootRpcUrl);
     if (options.privKey) {
@@ -46,7 +47,6 @@ module.exports = class Bridge {
     global.provider = this.rootProvider;
 
     this.contract = new ethers.Contract(options.contract, BRIDGE_ABI, this.signer);
-    this.currentBlock = new Block(null, this);
     this.eventFilter = {
       fromBlock: 0,
       toBlock: 0,
@@ -108,6 +108,7 @@ module.exports = class Bridge {
         debugMode: this.debugMode,
         badNodeMode: this.badNodeMode,
         eventCheckMs: this.eventCheckMs,
+        updateCheckMs: this.updateCheckMs,
       }
     );
 
@@ -142,44 +143,40 @@ module.exports = class Bridge {
     // Disable automatic submissions for testing or debugging purposes.
     if (!this.debugMode) {
       this._updateLoop();
+    } else {
+      this.log('Disabled update loop because of debugMode');
     }
   }
 
   async _updateLoop () {
     try {
+      // TODO
+      // that needs to honour submission thresholds
       if (this.currentBlock.transactionHashes.length) {
         this.log('submitting block...');
         const blockHash = await this.currentBlock.submitBlock(this);
       }
 
-      // TODO
-      // Figure out the next pending block
-      // const currentBlock = await this.contract.currentBlock();
-      // if (currentBlock.add(1).eq(blockNumber))...
-
-      if (this.pendingBlock) {
-        if (!(await this.isCurrentBlock(this.pendingBlock.number))) {
-          // we already moved on
-          this.pendingBlock = null;
-        } else {
-          const canFinalize = await this.contract.canFinalizeBlock(this.pendingBlock.hash);
-
-          this.log(`Can finalize pending block: ${canFinalize}`);
-          if (canFinalize) {
-            const ok = await this.finalizeSolution(this.pendingBlock.hash);
-            if (ok) {
-              this.pendingBlock = null;
-            }
-          }
-        }
-      } else {
+      // finalize or submit solution, if possible
+      {
         const currentBlock = await this.contract.currentBlock();
         const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
 
-        if (block) {
-          // we found the next pending block
+        // we found the next pending block
+        if (block && block.hash) {
+          const canFinalize = await this.contract.canFinalizeBlock(block.hash);
+
+          if (canFinalize) {
+            this.log(`Can finalize pending block: ${canFinalize}`);
+
+            const ok = await this.finalizeSolution(block.hash);
+            this.log(`finalizeSolution: ${ok}`);
+            return;
+          }
+
+          // no solution yet, submit one
           if (await this.submitSolution(block.hash)) {
-            this.pendingBlock = block;
+            this.log(`submitted solution for ${block.number}`);
           }
         }
       }
@@ -187,7 +184,7 @@ module.exports = class Bridge {
       this.log(e);
     }
 
-    setTimeout(this._updateLoop.bind(this), UPDATE_CHECK_MS);
+    setTimeout(this._updateLoop.bind(this), this.updateCheckMs);
   }
 
   async _dispatchEvent (evt) {
@@ -231,7 +228,7 @@ module.exports = class Bridge {
       data.address.replace('0x', '') +
       data.value.replace('0x', '');
     const blockHash = ethers.utils.keccak256('0x' + pending + raw.replace('0x', ''));
-    block.addDeposit(data, this);
+    block.addDeposit(data);
 
     block.raw = raw;
     block.hash = blockHash;
@@ -336,8 +333,6 @@ module.exports = class Bridge {
 
     if (mySolution.hash === solutionHash) {
       this.log('Block solution looks fine');
-      // remember to finalize this one, once we can
-      this.pendingBlock = block;
       return;
     }
 
@@ -347,7 +342,7 @@ module.exports = class Bridge {
       const txData = {
         to: this.contract.address,
         value: this.bondAmount,
-        data: block.raw.replace('0x', '0xf240f7c3'),
+        data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
       };
 
       let tx = await this.signer.sendTransaction(txData);
@@ -459,10 +454,10 @@ module.exports = class Bridge {
       return false;
     }
 
-    const solution = await block.computeSolution(this);
+    const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
 
     let tx = await this.contract.submitSolution(
-      blockHash, solution.hash,
+      blockHash, mySolution.hash,
       { value: this.bondAmount }
     );
     tx = await tx.wait();
@@ -484,8 +479,10 @@ module.exports = class Bridge {
       return true;
     }
 
-    this.log('Bridge.finalizeSolution', block.solution);
-    let tx = await this.contract.finalizeSolution(blockHash, block.solution.buffer);
+    const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
+
+    this.log('Bridge.finalizeSolution', mySolution);
+    let tx = await this.contract.finalizeSolution(blockHash, mySolution.buffer);
     tx = await tx.wait();
     this.log('Bridge.finalizeSolution', tx.gasUsed.toString());
 
@@ -501,7 +498,7 @@ module.exports = class Bridge {
 
     const txData = {
       to: this.contract.address,
-      data: block.raw.replace('0x', '0xb5b9cd7f'),
+      data: block.raw.replace('0x', FUNC_SIG_REPLAY),
     };
 
     let tx = await this.signer.sendTransaction(txData);

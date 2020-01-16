@@ -12,8 +12,6 @@ module.exports = class Block {
     this.prevBlock = prevBlock;
     // the blockHash - only available if this block was submitted to the Bridge.
     this.hash = '';
-    // the solution for this Block - only used as cache
-    this.solution = null;
     // the blockNumber
     this.number = prevBlock ? prevBlock.number + 1 : 1;
     // the token inventory
@@ -41,8 +39,6 @@ module.exports = class Block {
 
   async refactor (prevBlock, bridge) {
     this.hash = null;
-    this.solution = null;
-
     this.prevBlock = prevBlock;
     this.inventory = prevBlock.inventory.clone();
     this.number = prevBlock.number + 1;
@@ -284,17 +280,12 @@ module.exports = class Block {
 
   /// @dev Computes the solution for this Block.
   async computeSolution (bridge, doItWrong) {
-    this.log('Block.computeSolution');
-
-    if (this.solution) {
-      this.log('solution already computed');
-      return this.solution;
-    }
-
-    this.log(this.inventory.storageKeys);
-
     const storageKeys = this.inventory.storageKeys;
     const keys = Object.keys(storageKeys);
+
+    this.log('Block.computeSolution');
+    this.log(storageKeys);
+
     let buf = Buffer.alloc(0);
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i];
@@ -310,17 +301,16 @@ module.exports = class Block {
       buf[63] = 1;
     }
 
-    // cache the result
-    this.solution = {
+    const solution = {
       buffer: buf,
       hash: ethers.utils.solidityKeccak256(['bytes'], [buf]),
     };
 
     this.log('==================================================================================');
-    this.log(this.solution);
+    this.log(solution);
     this.log('==================================================================================');
 
-    return this.solution;
+    return solution;
   }
 
   // @dev For testing
