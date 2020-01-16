@@ -496,6 +496,19 @@ describe('Bridge/RPC', async function () {
       ).wait();
     });
 
+    it('dispute throw - no solution submitted', async () => {
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xf240f7c3' + raw,
+            value: await bridge.BOND_AMOUNT(),
+            gasLimit: 6000000,
+          }
+        )
+      );
+    });
+
     it('submitSolution', async () => {
       const tx = await (
         await bridge.submitSolution(blockHash, solutionHash, { value: await bridge.BOND_AMOUNT() })
@@ -511,7 +524,7 @@ describe('Bridge/RPC', async function () {
       await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
     });
 
-    it('dispute throw', async () => {
+    it('dispute throw - bond', async () => {
       await assertRevert(
         rootWalletAlice.sendTransaction(
           {
