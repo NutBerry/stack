@@ -66,7 +66,6 @@ contract Bridge is _Bridge {
   }
 
   /// @dev Submit a transaction blob (a block)
-  /// TODO: block nonce
   function submitBlock () public payable {
     _checkBond();
 
@@ -163,6 +162,8 @@ contract Bridge is _Bridge {
     _resolveBlock(blockHash);
 
     // update our storage
+    // TODO
+    // exits needs to be incremented
     assembly {
       let solution := 68
       let end := add(add(solution, 0x20), calldataload(solution))

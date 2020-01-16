@@ -4,7 +4,7 @@ import './LEVM.sol';
 
 // TODO: investigate possible re-entrancy attacks
 contract _Bridge is LEVM {
-  uint16 public constant VERSION = 1;
+  uint16 public constant VERSION = 2;
   uint256 public constant MAX_BLOCK_SIZE = 8096;
   uint256 public constant MAX_SOLUTION_SIZE = 2048;
   // 1 ether

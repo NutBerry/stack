@@ -11,7 +11,7 @@ it('start the nodes', async function () {
   } catch (e)  {
     console.log('spawning the node(s) - logFile: nodes.log');
 
-    const proc = spawn('js/debug.js', [], { env: Object.assign({ LOG_FILE: './nodes.log' }, process.env) });
+    const proc = spawn('scripts/debug.js', [], { env: Object.assign({ LOG_FILE: './nodes.log' }, process.env) });
     proc.on('exit', () => process.exit(1));
 
     while (true) {
