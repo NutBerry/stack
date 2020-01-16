@@ -435,7 +435,12 @@ module.exports = class Bridge {
     tx.to = tx.to.toLowerCase();
     tx.raw = data;
 
-    this.currentBlock.addTransaction(tx);
+    const success = await this.currentBlock.addTransaction(tx);
+
+    if (!success) {
+      throw new Error('Invalid transaction');
+    }
+
     return tx.hash;
   }
 

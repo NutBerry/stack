@@ -83,7 +83,7 @@ module.exports = class Block {
       // save transaction receipts for reverted transactions
       if (errno !== 0) {
         this.log('invalid tx', tx.hash);
-        return;
+        return false;
       }
 
       tx.logs = logs;
@@ -92,10 +92,12 @@ module.exports = class Block {
       this.inventory.trackNonce(tx.from, tx.nonce + 1);
       this.transactions[tx.hash] = tx;
       this.transactionHashes.push(tx.hash);
-      return;
+      return true;
     }
 
     this.log('invalid or duplicate tx', tx.hash);
+
+    return false;
   }
 
   validateTransaction (tx, expectedNonce) {

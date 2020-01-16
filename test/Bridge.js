@@ -36,6 +36,15 @@ async function assertRevert (tx) {
   assert.ok(reverted, 'Expected revert');
 }
 
+async function waitForValueChange (oldValue, getNewValue) {
+  while (true) {
+    if (oldValue.toString() !== (await getNewValue()).toString()) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 // TODO: way more tests ;)
 describe('Bridge/RPC', async function () {
   const ERC721_TOKEN_ID = '0x01';
@@ -149,7 +158,7 @@ describe('Bridge/RPC', async function () {
       tx = await bridge.deposit(erc20Root.address, value);
       tx = await tx.wait();
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitForValueChange(balance, () => erc20.balanceOf(walletAlice.address));
 
       balance = await erc20.balanceOf(walletAlice.address);
       assert.equal(balance.toHexString(), value, 'balance');
@@ -286,7 +295,11 @@ describe('Bridge/RPC', async function () {
 
       for (let i = 0; i < transactions.length; i++) {
         const tx = await provider.getTransaction(transactions[i]);
-        let tmp = await provider.send('eth_sendRawTransaction', [tx.raw]);
+        try {
+          await provider.send('eth_sendRawTransaction', [tx.raw]);
+        } catch (e) {
+          assert.equal(e.code, -32000, 'invalid transaction');
+        }
       }
 
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
@@ -456,13 +469,17 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Invalid Block & dispute', async () => {
+  describe('Invalid Block, solution too big & dispute', async () => {
     const raw = '0123456789abcdef';
-    const solution = Buffer.alloc(64);
-    const solutionHash = ethers.utils.keccak256(solution);
+    let solution;
+    let solutionHash;
     let blockHash;
 
     before(async () => {
+      const maxSize = await bridge.MAX_SOLUTION_SIZE();
+      solution = Buffer.alloc(maxSize.toNumber() + 1);
+      solutionHash = ethers.utils.keccak256(solution);
+
       const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
       blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
     });
@@ -479,13 +496,35 @@ describe('Bridge/RPC', async function () {
       ).wait();
     });
 
+    it('dispute throw - no solution submitted', async () => {
+      await assertRevert(
+        rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xf240f7c3' + raw,
+            value: await bridge.BOND_AMOUNT(),
+            gasLimit: 6000000,
+          }
+        )
+      );
+    });
+
     it('submitSolution', async () => {
       const tx = await (
         await bridge.submitSolution(blockHash, solutionHash, { value: await bridge.BOND_AMOUNT() })
       ).wait();
     });
 
-    it('dispute throw', async () => {
+    it('finalizeSolution should throw - solution too large', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+
+      const canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.ok(canFinalize, 'canFinalizeBlock');
+
+      await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
+    });
+
+    it('dispute throw - bond', async () => {
       await assertRevert(
         rootWalletAlice.sendTransaction(
           {
