@@ -112,8 +112,8 @@ contract Bridge is _Bridge {
     _checkBlock(blockHash);
 
     uint256 time = timeOfSubmission[blockHash];
-    // Revert if no solution exists or if we are already over the inspection period.
-    if (time == 0 || block.number > time + INSPECTION_PERIOD) {
+    // Revert if no solution exists
+    if (time == 0) {
       revert();
     }
 
@@ -145,7 +145,7 @@ contract Bridge is _Bridge {
   function finalizeSolution (bytes32 blockHash, bytes calldata) external {
     bytes32 solutionHash;
     assembly {
-      let size := sub(calldatasize, 100)
+      let size := sub(calldatasize(), 100)
       // MAX_SOLUTION_SIZE
       if gt(size, 2048) {
         revert(0, 0)

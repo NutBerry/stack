@@ -36,6 +36,15 @@ async function assertRevert (tx) {
   assert.ok(reverted, 'Expected revert');
 }
 
+async function waitForValueChange (oldValue, getNewValue) {
+  while (true) {
+    if (oldValue.toString() !== (await getNewValue()).toString()) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 // TODO: way more tests ;)
 describe('Bridge/RPC', async function () {
   const ERC721_TOKEN_ID = '0x01';
@@ -149,7 +158,7 @@ describe('Bridge/RPC', async function () {
       tx = await bridge.deposit(erc20Root.address, value);
       tx = await tx.wait();
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitForValueChange(balance, () => erc20.balanceOf(walletAlice.address));
 
       balance = await erc20.balanceOf(walletAlice.address);
       assert.equal(balance.toHexString(), value, 'balance');
@@ -456,13 +465,17 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Invalid Block & dispute', async () => {
+  describe('Invalid Block, solution too big & dispute', async () => {
     const raw = '0123456789abcdef';
-    const solution = Buffer.alloc(64);
-    const solutionHash = ethers.utils.keccak256(solution);
+    let solution;
+    let solutionHash;
     let blockHash;
 
     before(async () => {
+      const maxSize = await bridge.MAX_SOLUTION_SIZE();
+      solution = Buffer.alloc(maxSize.toNumber() + 1);
+      solutionHash = ethers.utils.keccak256(solution);
+
       const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
       blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
     });
@@ -483,6 +496,15 @@ describe('Bridge/RPC', async function () {
       const tx = await (
         await bridge.submitSolution(blockHash, solutionHash, { value: await bridge.BOND_AMOUNT() })
       ).wait();
+    });
+
+    it('finalizeSolution should throw - solution too large', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+
+      const canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.ok(canFinalize, 'canFinalizeBlock');
+
+      await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
     });
 
     it('dispute throw', async () => {
