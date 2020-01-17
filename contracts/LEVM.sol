@@ -18,7 +18,7 @@ contract LEVM is Inventory {
   // bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
 
   /// @dev Internal helper for parsing encoded transactions from calldata.
-  function parseTx (
+  function _parseTx (
     uint256 offset,
     uint256 boundary,
     uint256[5] memory params
@@ -194,51 +194,50 @@ contract LEVM is Inventory {
     return offset;
   }
 
-  function memLoad (uint256 offset) internal pure returns (uint256 ret) {
+  function _memLoad (uint256 offset) internal pure returns (uint256 ret) {
     assembly {
       ret := calldataload(offset)
     }
   }
 
   // solhint-disable-next-line function-max-lines
-  function handleCall (
+  function _handleCall (
     address caller,
     address target,
     uint inOffset,
     uint /*inSize*/
-  ) internal returns (bytes memory) {
-    bytes4 functionSig = bytes4(bytes32(memLoad(inOffset)));
+  ) internal returns (bool) {
+    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
 
     // TODO: do real checks
     // check inSize/inOffset bounds
-    // if FALSE return ''
 
     if (functionSig == FUNC_SIG_APPROVE) {
-      address spender = address(uint160(memLoad(inOffset + 4)));
-      uint value = memLoad(inOffset + 4 + 32);
+      address spender = address(uint160(_memLoad(inOffset + 4)));
+      uint value = _memLoad(inOffset + 4 + 32);
 
       setAllowance(target, caller, spender, value);
-      // TODO
-      return abi.encodePacked(true);
+
+      return true;
     }
 
     if (functionSig == FUNC_SIG_TRANSFER) {
-      address to = address(uint160(memLoad(inOffset + 4)));
-      uint value = memLoad(inOffset + 4 + 32);
+      address to = address(uint160(_memLoad(inOffset + 4)));
+      uint value = _memLoad(inOffset + 4 + 32);
 
-      return abi.encodePacked(_transfer(caller, target, to, value));
+      return _transfer(caller, target, to, value);
     }
 
     if (functionSig == FUNC_SIG_TRANSFER_FROM) {
-      address from = address(uint160(memLoad(inOffset + 4)));
-      address to = address(uint160(memLoad(inOffset + 4 + 32 )));
-      uint256 tokenId = uint256(memLoad(inOffset + 4 + 32 + 32));
+      address from = address(uint160(_memLoad(inOffset + 4)));
+      address to = address(uint160(_memLoad(inOffset + 4 + 32 )));
+      uint256 tokenId = uint256(_memLoad(inOffset + 4 + 32 + 32));
 
-      return abi.encodePacked(_transferFrom(caller, target, from, to, tokenId));
+      return _transferFrom(caller, target, from, to, tokenId);
     }
 
     // invalid - call fails
-    return '';
+    return false;
   }
 
   function transfer (address to, uint256 value) public returns (bool) {
@@ -347,7 +346,7 @@ contract LEVM is Inventory {
     }
 
     while (offset < length) {
-      offset = parseTx(offset, length, params);
+      offset = _parseTx(offset, length, params);
 
       if (offset == 0) {
         break;
@@ -381,9 +380,9 @@ contract LEVM is Inventory {
         funcSig == FUNC_SIG_TRANSFER ||
         funcSig == FUNC_SIG_TRANSFER_FROM
       ) {
-        bytes memory callResult = handleCall(from, to, calldataOffset, calldataLength);
+        bool success = _handleCall(from, to, calldataOffset, calldataLength);
         // valid transactions must exit without error
-        if (callResult.length == 0) {
+        if (!success) {
           continue;
         }
       } else {

@@ -13,14 +13,7 @@ const TOPIC_DEPOSIT = '0x5548c837ab068cf56a2c2479df0882a4922fd203edb7517321831d9
 const TOPIC_BEACON = '0x98f7f6a06026bc1e4789634d93bff8d19b1c3b070cc440b6a6ae70bae9fec6dc';
 // NewSolution(bytes32,bytes32)
 const TOPIC_SOLUTION = '0x8f83eb5964d76be4a4f1e1f29afb7dabf96121727cae0afe196f30d4e57e9a48';
-// NewDispute(bytes32)
-const TOPIC_DISPUTE = '0x16c365760145ef041452748ec5c20f2d9fb23924ea026eeb18935ff81e3238f9';
-// Slashed(bytes32,bool)
-const TOPIC_SLASHED = '0x6c48028c877b18aadc31081febd708cb0b41fb44ee7dd7bc071063b95c967029';
-// DisputeNewRound(bytes32,uint256,bytes32,bytes32)
-const TOPIC_DISPUTE_ROUND = '0xfcde97ca95164905ad9a9101e2555288c5efe5d7ebf5537871b534b5b0a0254d';
 
-const FUNC_SIG_REPLAY = '0xb5b9cd7f';
 const FUNC_SIG_DISPUTE = '0xf240f7c3';
 
 /// @dev Glue for everything.
@@ -76,13 +69,6 @@ module.exports = class Bridge {
           this.contract.interface.events.Solution.decode(evt.data);
 
         await this.onSolution(blockHash, solutionHash, evt);
-      };
-    this.eventHandlers[TOPIC_DISPUTE] =
-      async (evt) => {
-        const { blockHash } =
-          this.contract.interface.events.NewDispute.decode(evt.data);
-
-        await this.onNewDispute(blockHash);
       };
 
     this.init();
@@ -277,26 +263,16 @@ module.exports = class Bridge {
         const v = Utils.bufToHex(buf, offset, offset += 1);
         const tx = {
           to,
-          // TODO: use BigInt/hex-string
-          nonce: parseInt(nonce, 16),
+          nonce: nonce,
           data: calldata,
-          gasLimit: '0x00',
-          gasPrice: '0x00',
-          value: '0x00',
+          gasLimit: 0,
+          gasPrice: 0,
+          value: 0,
           chainId: 0,
         };
-        const unsigned = ethers.utils.serializeTransaction(tx);
         const signed = ethers.utils.serializeTransaction(tx, { r, s, v });
-        const digest = ethers.utils.keccak256(unsigned);
-        const from = ethers.utils.recoverAddress(
-          Buffer.from(digest.replace('0x', ''), 'hex'), { r, s, v }
-        );
 
-        tx.hash = ethers.utils.keccak256(signed);
-        tx.from = from.toLowerCase();
-        tx.raw = signed;
-
-        await block.addTransaction(tx);
+        await block.addTransaction(signed);
       } catch (e) {
         this.log('TODO - proper tx parsing');
       }
@@ -341,7 +317,6 @@ module.exports = class Bridge {
     try {
       const txData = {
         to: this.contract.address,
-        value: this.bondAmount,
         data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
       };
 
@@ -355,11 +330,7 @@ module.exports = class Bridge {
     }
   }
 
-  async onNewDispute (blockHash) {
-  }
-
   async getBlockByHash (hash) {
-    // TODO: account for the duplicate blockHash situation
     let len = this.blocks.length;
 
     while (len--) {
@@ -421,22 +392,13 @@ module.exports = class Bridge {
   }
 
   async runTx ({ data }) {
-    const tx = ethers.utils.parseTransaction(data);
+    const txHash = await this.currentBlock.addTransaction(data);
 
-    tx.gasPrice = tx.gasPrice.toHexString();
-    tx.gasLimit = tx.gasLimit.toHexString();
-    tx.value = tx.value.toHexString();
-    tx.from = tx.from.toLowerCase();
-    tx.to = tx.to.toLowerCase();
-    tx.raw = data;
-
-    const success = await this.currentBlock.addTransaction(tx);
-
-    if (!success) {
+    if (!txHash) {
       throw new Error('Invalid transaction');
     }
 
-    return tx.hash;
+    return txHash;
   }
 
   async getCode (addr) {
@@ -457,8 +419,7 @@ module.exports = class Bridge {
     const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
 
     let tx = await this.contract.submitSolution(
-      blockHash, mySolution.hash,
-      { value: this.bondAmount }
+      blockHash, mySolution.hash
     );
     tx = await tx.wait();
 
@@ -498,7 +459,7 @@ module.exports = class Bridge {
 
     const txData = {
       to: this.contract.address,
-      data: block.raw.replace('0x', FUNC_SIG_REPLAY),
+      data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
     };
 
     let tx = await this.signer.sendTransaction(txData);

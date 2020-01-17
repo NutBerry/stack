@@ -13,7 +13,7 @@ contract TestLEVM is LEVM {
     }
 
     while (offset < length) {
-      offset = parseTx(offset, length, params);
+      offset = _parseTx(offset, length, params);
 
       if (offset == 0) {
         break;

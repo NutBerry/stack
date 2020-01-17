@@ -37,7 +37,7 @@ contract Bridge is _Bridge {
       }
     }
 
-    blocks[blockHash] = pending;
+    blocks[blockHash] = msg.sender;
     highestPendingBlock = pending;
 
     emit Deposit(token, msg.sender, amountOrId);
@@ -68,6 +68,7 @@ contract Bridge is _Bridge {
   /// @dev Submit a transaction blob (a block)
   function submitBlock () public payable {
     _checkBond();
+    _checkCaller();
 
     // Submitting special blocks like deposits-blocks is not allowed.
     // Revert if someone is trying to submit such a block.
@@ -77,7 +78,7 @@ contract Bridge is _Bridge {
 
     uint256 pending = highestPendingBlock + 1;
     bytes32 blockHash = _blockHash(pending);
-    blocks[blockHash] = pending;
+    blocks[blockHash] = msg.sender;
     highestPendingBlock = pending;
 
     emit BlockBeacon();
@@ -88,9 +89,8 @@ contract Bridge is _Bridge {
   function submitSolution (
     bytes32 blockHash,
     bytes32 solutionHash
-  ) public payable
-  {
-    _checkBond();
+  ) public {
+    _checkCaller();
     _checkBlock(blockHash);
 
     require(solutionHash != 0);
@@ -98,28 +98,18 @@ contract Bridge is _Bridge {
 
     blockSolutions[blockHash] = solutionHash;
     timeOfSubmission[blockHash] = block.number;
-    solverOfBlock[blockHash] = msg.sender;
 
     emit NewSolution(blockHash, solutionHash);
   }
 
   /// @dev Challenge a solution
-  function dispute () public payable {
+  function dispute () public {
+    // validate the data
     bytes32 blockHash = _blockHash(currentBlock + 1);
 
-    _checkBond();
-    _checkBlock(blockHash);
-
-    uint256 time = timeOfSubmission[blockHash];
-    // Revert if no solution exists
-    if (time == 0) {
-      revert();
-    }
-
-    challengerOfBlock[blockHash] = msg.sender;
-
+    _checkCaller();
     // TODO: challenge needs to be chunkable once we support smart contracts
-    _resolveBlock(blockHash);
+    _resolveBlock(blockHash, msg.sender);
     _validateBlock();
   }
 
@@ -131,11 +121,8 @@ contract Bridge is _Bridge {
       return false;
     }
 
-    // if there are still open challenges
-    if (challengerOfBlock[blockHash] != address(0)) {
-      return false;
-    }
-
+    // TODO
+    // if chunkable disputes lands, check for open dispute
     return true;
   }
 
@@ -159,7 +146,7 @@ contract Bridge is _Bridge {
       revert();
     }
 
-    _resolveBlock(blockHash);
+    _resolveBlock(blockHash, msg.sender);
 
     // update our storage
     // TODO
@@ -175,14 +162,5 @@ contract Bridge is _Bridge {
         sstore(key, val)
       }
     }
-  }
-
-  /// @dev direct replay the next pending block
-  function replay () public {
-    // validate the data
-    bytes32 blockHash = _blockHash(currentBlock + 1);
-
-    _resolveBlock(blockHash);
-    _validateBlock();
   }
 }

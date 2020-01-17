@@ -21,24 +21,18 @@ contract _Bridge is LEVM {
   uint256 public currentBlock;
   // highest not finalized block
   uint256 highestPendingBlock;
-  // blockHash > blockNumber
-  mapping (bytes32 => uint256) blocks;
+  // blockHash > block proposer
+  mapping (bytes32 => address) blocks;
   // blockHash > solutionHash
   mapping (bytes32 => bytes32) blockSolutions;
 
   // TODO: get rid of these storage patterns
   // blockHash > timeOfSubmission | in blocks
   mapping (bytes32 => uint256) timeOfSubmission;
-  // blockHash > submitter/solver
-  mapping (bytes32 => address) solverOfBlock;
-  // blockHash > challenger
-  mapping (bytes32 => address) challengerOfBlock;
 
   event Deposit(address token, address owner, uint256 value);
   event BlockBeacon();
   event NewSolution(bytes32 blockHash, bytes32 solutionHash);
-  event NewDispute(bytes32 blockHash);
-  event Slashed(bytes32 blockHash, bool solverWon);
 
   function _blockHash (uint256 nonce) internal pure returns (bytes32 blockHash) {
     assembly {
@@ -59,17 +53,13 @@ contract _Bridge is LEVM {
 
   /// @dev Checks if `blockHash` is the current block that needs finalization.
   function _checkBlock (bytes32 blockHash) internal {
-    uint256 cblock = currentBlock + 1;
-    if (blocks[blockHash] != cblock) {
+    if (blocks[blockHash] == address(0)) {
       revert();
     }
   }
 
   /// @dev Internal function to check if caller satisfies common conditions.
-  function _checkBond () internal {
-    if (msg.value != BOND_AMOUNT) {
-      revert();
-    }
+  function _checkCaller () internal {
     // Do not allow contracts
     assembly {
       if iszero(
@@ -83,54 +73,34 @@ contract _Bridge is LEVM {
     }
   }
 
+  /// @dev Internal function to check if caller satisfies common conditions.
+  function _checkBond () internal {
+    if (msg.value != BOND_AMOUNT) {
+      revert();
+    }
+  }
+
   /// @dev Callback from the Verifier once a dispute is resolved
-  function _resolveBlock (bytes32 blockHash) internal {
-    uint256 cblock = currentBlock + 1;
-    if (blocks[blockHash] != cblock) {
+  function _resolveBlock (bytes32 blockHash, address payable solver) internal {
+    if (blocks[blockHash] == address(0)) {
       revert();
     }
 
-    currentBlock = cblock;
+    currentBlock = currentBlock + 1;
+
+    address payable blockProducer = address(bytes20(blocks[blockHash]));
+
     delete blocks[blockHash];
     delete blockSolutions[blockHash];
     delete timeOfSubmission[blockHash];
 
-    // If the solution is deleted by some other resolved dispute
-    // - Only return challenger's bond
-    address payable solver = address(bytes20(solverOfBlock[blockHash]));
-    address payable challenger = address(bytes20(challengerOfBlock[blockHash]));
-
-    delete solverOfBlock[blockHash];
-    delete challengerOfBlock[blockHash];
-
-    // TODO
-    // Implement new incentive model
-    // If solution equals solver's solution
-    //   if challenged:
-    //     solver gets (bond + FEE) back
-    //     challenger gets (bond - FEE) back
-    //     block submitter gets bond back
-    //   else
-    //     solver gets (bond + FEE) back
-    //     block submitter gets (bond - FEE) back
-    //  else (solver is wrong; implies challenged)
-    //    challenger gets (bond + FEE) back
-    //    challenger gets solver's bond
-    //    block submitter gets bond back
-
-    // TODO
-    // Compare solution-set
-    bool solverWon = true;
-    // Winner gets all remaining bonds from the open solutions.
-    uint256 bonds = address(this).balance;
-    if (solverWon) {
-      // solver gets bond
-      solver.transfer(bonds);
-    } else {
-      // challenger gets bond * 2 (challenger's + solver's bond)
-      challenger.transfer(bonds);
+    // we might not have a bond if it's a special block
+    if (address(this).balance >= BOND_AMOUNT) {
+      solver.transfer(BOND_AMOUNT / 2);
+      blockProducer.transfer(BOND_AMOUNT / 2);
     }
-
-    emit Slashed(blockHash, solverWon);
+    // TODO
+    // block producer lock period
+    // payout to finalizer - leftover bond (gas refunder) goes to block producer
   }
 }
