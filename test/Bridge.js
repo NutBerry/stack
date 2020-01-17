@@ -588,7 +588,7 @@ describe('Bridge/RPC', async function () {
       await produceBlocks(1);
       const balanceAfter = await rootProvider.getBalance(NODE_ADDR);
       // TODO: this needs to take the gas costs into account once the Bridge supports that
-      const bondAmount = BigInt(await bridge.BOND_AMOUNT()) / 2n;
+      const bondAmount = BigInt(await bridge.BOND_AMOUNT()) / BigInt(2);
       assert.ok((BigInt(balanceAfter) - BigInt(balanceBefore)) >= bondAmount, 'balance - bond returned');
     });
 
