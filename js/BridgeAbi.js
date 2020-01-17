@@ -290,33 +290,4 @@ module.exports = [
     'name': 'Solution',
     'type': 'event',
   },
-  {
-    'anonymous': false,
-    'inputs': [
-      {
-        'indexed': false,
-        'name': 'blockHash',
-        'type': 'bytes32',
-      },
-    ],
-    'name': 'NewDispute',
-    'type': 'event',
-  },
-  {
-    'anonymous': false,
-    'inputs': [
-      {
-        'indexed': false,
-        'name': 'blockHash',
-        'type': 'bytes32',
-      },
-      {
-        'indexed': false,
-        'name': 'solverWon',
-        'type': 'bool',
-      },
-    ],
-    'name': 'Slashed',
-    'type': 'event',
-  },
 ];

@@ -431,23 +431,17 @@ describe('Bridge/RPC', async function () {
       ).wait();
     });
 
-    it('submitSolution without bond', async () => {
-      await assertRevert(
-        bridge.submitSolution(blockHash, solutionHash, { gasLimit: 6000000 })
-      );
-    });
-
     it('submitSolution - wrong blockHash', async () => {
       await assertRevert(
         bridge.submitSolution('0x00000000000000000000000000000000000000000000000000000000000000cc', solutionHash,
-          { value: await bridge.BOND_AMOUNT(), gasLimit: 6000000 }
+          { gasLimit: 6000000 }
         )
       );
     });
 
     it('submitSolution', async () => {
       const tx = await (
-        await bridge.submitSolution(blockHash, solutionHash, { value: await bridge.BOND_AMOUNT() })
+        await bridge.submitSolution(blockHash, solutionHash)
       ).wait();
     });
 
@@ -511,7 +505,7 @@ describe('Bridge/RPC', async function () {
 
     it('submitSolution', async () => {
       const tx = await (
-        await bridge.submitSolution(blockHash, solutionHash, { value: await bridge.BOND_AMOUNT() })
+        await bridge.submitSolution(blockHash, solutionHash)
       ).wait();
     });
 
@@ -524,26 +518,12 @@ describe('Bridge/RPC', async function () {
       await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
     });
 
-    it('dispute throw - bond', async () => {
-      await assertRevert(
-        rootWalletAlice.sendTransaction(
-          {
-            to: bridge.address,
-            data: '0xf240f7c3' + raw,
-            value: 1,
-            gasLimit: 6000000,
-          }
-        )
-      );
-    });
-
     it('dispute', async () => {
       const tx = await (
         await rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
             data: '0xf240f7c3' + raw,
-            value: await bridge.BOND_AMOUNT(),
           }
         )
       ).wait();
@@ -616,7 +596,7 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Round 3 - submitBlock > submitSolution > dispute > finalizeSolution', async () => {
+  describe('Round 3 - submitBlock > submitSolution > directReplay', async () => {
     doRound();
 
     it('submitBlock', async () => {
@@ -627,21 +607,17 @@ describe('Bridge/RPC', async function () {
         found = await provider.send('debug_submitSolution', [blockHash]);
       }
 
-      const solverWon = await new Promise(
-        (resolve) => {
-          const listener = bridge.once(bridge.filters.Slashed(),
-            (disputeId, solverWon) => {
-              resolve(solverWon);
-            }
-          );
-        }
-      );
+      let canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.equal(canFinalize, false);
 
-      assert.ok(solverWon, 'solver should win the dispute');
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+      canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.equal(canFinalize, true);
 
       // finalize block
-      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
-      await provider.send('debug_finalizeSolution', [blockHash]);
+      await provider.send('debug_directReplay', [blockHash]);
+      canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.equal(canFinalize, false);
     });
   });
 

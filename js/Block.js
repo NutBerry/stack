@@ -67,7 +67,16 @@ module.exports = class Block {
     this.log(`Refactor:Complete ${this.transactionHashes.length} transactions left`);
   }
 
-  async addTransaction (tx) {
+  async addTransaction (data) {
+    const tx = ethers.utils.parseTransaction(data);
+
+    tx.gasPrice = tx.gasPrice.toHexString();
+    tx.gasLimit = tx.gasLimit.toHexString();
+    tx.value = tx.value.toHexString();
+    tx.from = tx.from.toLowerCase();
+    tx.to = tx.to.toLowerCase();
+    tx.raw = data;
+
     const expectedNonce = this.nonces[tx.from] | 0;
 
     if (this.validateTransaction(tx, expectedNonce)) {
@@ -79,7 +88,7 @@ module.exports = class Block {
       // save transaction receipts for reverted transactions
       if (errno !== 0) {
         this.log('invalid tx', tx.hash);
-        return false;
+        return null;
       }
 
       tx.logs = logs;
@@ -88,12 +97,13 @@ module.exports = class Block {
       this.inventory.trackNonce(tx.from, tx.nonce + 1);
       this.transactions[tx.hash] = tx;
       this.transactionHashes.push(tx.hash);
-      return true;
+
+      return tx.hash;
     }
 
     this.log('invalid or duplicate tx', tx.hash);
 
-    return false;
+    return null;
   }
 
   validateTransaction (tx, expectedNonce) {
