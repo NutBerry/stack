@@ -610,7 +610,8 @@ describe('Bridge/RPC', async function () {
       let canFinalize = await bridge.canFinalizeBlock(blockHash);
       assert.equal(canFinalize, false);
 
-      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+      await produceBlocks(1);
       canFinalize = await bridge.canFinalizeBlock(blockHash);
       assert.equal(canFinalize, true);
 
