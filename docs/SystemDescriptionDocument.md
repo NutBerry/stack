@@ -54,7 +54,7 @@ After the RLP encoded unsigned transaction comes the 65 bytes signature:
 A Block consists of a arbitrary number of transactions and must not exceed
 `MAX_BLOCK_SIZE`.
 
-`0x64ef39ca` is prepended to every Block and the block hash is `keccak256(block)`.
+The block nonce is the `uint256` block number for that block, thus block hash is `keccak256(nonce + block)`.
 
 ## Deposit
 
