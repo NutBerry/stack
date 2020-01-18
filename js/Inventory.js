@@ -459,7 +459,7 @@ module.exports = class Inventory {
               '0x' + spender.replace('0x', '').padStart(64, '0'),
             ],
             data: value,
-          }
+          },
         ];
 
         return [ret, logs];
@@ -484,7 +484,7 @@ module.exports = class Inventory {
               '0x' + to.replace('0x', '').padStart(64, '0'),
             ],
             data: value,
-          }
+          },
         ];
         return [ret, logs];
       }
@@ -504,7 +504,7 @@ module.exports = class Inventory {
       if (funcSig === FUNC_SIG_OWNER_OF) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
-        return [inventory.ownerOf(target, tokenId), []]
+        return [inventory.ownerOf(target, tokenId), []];
       }
 
       if (funcSig === FUNC_SIG_GET_APPROVED) {

@@ -211,8 +211,6 @@ module.exports = class Block {
       returnValue: ret,
       logs,
     };
-
-    return res;
   }
 
   getTransaction (txHash) {
