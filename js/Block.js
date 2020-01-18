@@ -203,13 +203,13 @@ module.exports = class Block {
     const to = '0x0000000000000000000000000000000000000000';
     const target = tx.to.toLowerCase();
     const data = tx.data.replace('0x', '');
-    const res = customEnvironment.handleCall(msgSender, to, target, data) || '0x';
-    const errno = res === '0x' ? 7 : 0;
+    const [ret, logs] = customEnvironment.handleCall(msgSender, to, target, data) || '0x';
+    const errno = ret === '0x' ? 7 : 0;
     // TODO
     return {
       errno: errno,
-      returnValue: res,
-      logs: [],
+      returnValue: ret,
+      logs,
     };
 
     return res;

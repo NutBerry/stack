@@ -155,6 +155,8 @@ describe('Bridge/RPC', async function () {
 
       let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
       tx = await tx.wait();
+      assert.equal(tx.logs.length, 1, 'logs emitted');
+
       tx = await bridge.deposit(erc20Root.address, value);
       tx = await tx.wait();
 
@@ -167,20 +169,25 @@ describe('Bridge/RPC', async function () {
     it('TestContract.test', async () => {
       let tx = await erc20.approve(testContract.address, '0xff');
       tx = await tx.wait();
+      assert.equal(tx.logs.length, 1, 'logs emitted');
+
       tx = await testContract.test(erc20.address, [], []);
       tx = await tx.wait();
+      assert.equal(tx.logs.length, 0, 'logs emitted');
     });
 
     it('TestContract.testERC20', async () => {
       const balanceBefore = await erc20.balanceOf(walletAlice.address);
       let tx = await erc20.approve(testContract.address, '0xff');
       tx = await tx.wait();
+      assert.equal(tx.logs.length, 1, 'logs emitted');
+
       tx = await testContract.testERC20(erc20.address, walletAlice.address, testContract.address, 0);
       tx = await tx.wait();
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
 
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() - 1, 'balance of Alice');
-      assert.equal(tx.logs.length, 4, 'logs emitted');
+      assert.equal(tx.logs.length, 6, 'logs emitted');
     });
 
     it('unknown method', async () => {

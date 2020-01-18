@@ -41,6 +41,7 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
 
     // TODO: add `address`
     const obj = {
+      address: `0x${runState.address.toString('hex')}`,
       topics,
       data,
     };
@@ -51,8 +52,10 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
     const inventory = runState.customEnvironment;
     const msgSender = `0x${runState.caller.toString('hex')}`;
     const to = '0x' + runState.address.toString('hex');
+    const [ret, logs] = inventory.handleCall(msgSender, to, target, data);
 
-    return inventory.handleCall(msgSender, to, target, data);
+    runState.logs = runState.logs.concat(logs);
+    return ret;
   }
 
   async handleCALL (runState) {

@@ -120,8 +120,7 @@ module.exports = class Methods {
           transactionIndex,
           blockNumber,
           transactionHash: txHash,
-          // TODO: take `address` from the `log`, once supported
-          address: tx.to,
+          address: log.address,
           topics: log.topics,
           data: log.data,
           logIndex,

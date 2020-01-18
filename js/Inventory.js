@@ -426,14 +426,19 @@ module.exports = class Inventory {
     if (funcSig === FUNC_SIG_BALANCE_OF) {
       const owner = `0x${data.substring(offset += 24, offset += 40)}`;
 
-      return inventory.balanceOf(target, owner);
+      return [inventory.balanceOf(target, owner), []];
     }
+
+    // TODO
+    // ERC721
+    // event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    // event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
 
     if (funcSig === FUNC_SIG_ALLOWANCE) {
       const owner = '0x' + data.substring(offset += 24, offset += 40);
       const spender = '0x' + data.substring(offset += 24, offset += 40);
 
-      return inventory.allowance(target, owner, spender);
+      return [inventory.allowance(target, owner, spender), []];
     }
 
     if (funcSig === FUNC_SIG_APPROVE) {
@@ -441,14 +446,50 @@ module.exports = class Inventory {
       const spender = '0x' + data.substring(offset += 24, offset += 40);
       const value = '0x' + data.substring(offset, offset += 64);
 
-      return inventory.setAllowance(target, msgSender, spender, value);
+      const ret = inventory.setAllowance(target, msgSender, spender, value);
+      if (ret === UINT_ONE) {
+        // 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925
+        // event Approval(address indexed, address indexed, uint256);
+        const logs = [
+          {
+            address: target,
+            topics: [
+              '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
+              '0x' + msgSender.replace('0x', '').padStart(64, '0'),
+              '0x' + spender.replace('0x', '').padStart(64, '0'),
+            ],
+            data: value,
+          }
+        ];
+
+        return [ret, logs];
+      }
+
+      return [ret, []];
     }
 
     if (funcSig === FUNC_SIG_TRANSFER) {
       const to = '0x' + data.substring(offset += 24, offset += 40);
       const value = '0x' + data.substring(offset, offset += 64);
 
-      return inventory.transfer(msgSender, target, to, value);
+      const ret = inventory.transfer(msgSender, target, to, value);
+
+      if (ret === UINT_ONE) {
+        const logs = [
+          {
+            address: target,
+            topics: [
+              '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+              '0x' + msgSender.replace('0x', '').padStart(64, '0'),
+              '0x' + to.replace('0x', '').padStart(64, '0'),
+            ],
+            data: value,
+          }
+        ];
+        return [ret, logs];
+      }
+
+      return [ret, []];
     }
 
     if (funcSig === FUNC_SIG_TRANSFER_FROM) {
@@ -456,33 +497,33 @@ module.exports = class Inventory {
       const to = '0x' + data.substring(offset += 24, offset += 40);
       const tokenId = '0x' + data.substring(offset, offset += 64);
 
-      return inventory.transferFrom(msgSender, target, from, to, tokenId);
+      return [inventory.transferFrom(msgSender, target, from, to, tokenId), []];
     }
 
     if (this.testing) {
       if (funcSig === FUNC_SIG_OWNER_OF) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
-        return inventory.ownerOf(target, tokenId);
+        return [inventory.ownerOf(target, tokenId), []]
       }
 
       if (funcSig === FUNC_SIG_GET_APPROVED) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
-        return inventory.getApproved(_to, target, tokenId);
+        return [inventory.getApproved(_to, target, tokenId), []];
       }
 
       if (funcSig === FUNC_SIG_READ_DATA) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
-        return inventory.readData(target, tokenId);
+        return [inventory.readData(target, tokenId), []];
       }
 
       if (funcSig === FUNC_SIG_WRITE_DATA) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
         const newTokenData = '0x' + data.substring(offset, offset += 64);
 
-        return inventory.writeData(msgSender, target, tokenId, newTokenData);
+        return [inventory.writeData(msgSender, target, tokenId, newTokenData), []];
       }
 
       if (funcSig === FUNC_SIG_BREED) {
@@ -490,7 +531,7 @@ module.exports = class Inventory {
         const to = '0x' + data.substring(offset += 24, offset += 40);
         const newTokenData = '0x' + data.substring(offset, offset += 64);
 
-        return inventory.breed(msgSender, target, tokenId, to, newTokenData);
+        return [inventory.breed(msgSender, target, tokenId, to, newTokenData), []];
       }
     }
   }
