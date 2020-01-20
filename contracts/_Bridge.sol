@@ -21,6 +21,8 @@ contract _Bridge is LEVM {
   uint256 public currentBlock;
   // highest not finalized block
   uint256 highestPendingBlock;
+  // tracks the block offset in chunked disputes
+  uint256 disputeOffset;
   // blockHash > block proposer
   mapping (bytes32 => address) blocks;
   // blockHash > solutionHash
@@ -93,6 +95,7 @@ contract _Bridge is LEVM {
     delete blocks[blockHash];
     delete blockSolutions[blockHash];
     delete timeOfSubmission[blockHash];
+    disputeOffset = 0;
 
     // we might not have a bond if it's a special block
     if (address(this).balance >= BOND_AMOUNT) {

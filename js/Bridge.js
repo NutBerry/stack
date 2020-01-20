@@ -116,6 +116,7 @@ module.exports = class Bridge {
       }
     }
 
+    this.ready = true;
     this.log(
       'synced',
       {
@@ -314,20 +315,7 @@ module.exports = class Bridge {
 
     this.log('Different results, starting dispute...');
 
-    try {
-      const txData = {
-        to: this.contract.address,
-        data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
-      };
-
-      let tx = await this.signer.sendTransaction(txData);
-      tx = await tx.wait();
-
-      this.log('Bridge.dispute', tx.gasUsed.toString());
-      Utils.dumpLogs(tx.logs, this.contract.interface);
-    } catch (e) {
-      this.log('starting dispute', e);
-    }
+    await this._processDispute(block);
   }
 
   async getBlockByHash (hash) {
@@ -457,17 +445,52 @@ module.exports = class Bridge {
       return false;
     }
 
+    await this._processDispute(block);
+
+    return true;
+  }
+
+  async _processDispute (block) {
+    const TAG = 'Bridge.dispute';
     const txData = {
       to: this.contract.address,
       data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
+      gasLimit: 8000000,
     };
+    const cBlock = await this.contract.currentBlock();
+    if (cBlock.gte(block.number)) {
+      this.log(TAG, 'ALREADY COMPLETED');
+      return;
+    }
 
-    let tx = await this.signer.sendTransaction(txData);
-    tx = await tx.wait();
+    let cumulative = 0;
+    try {
+      let ctr = 0;
+      while (true) {
+        const lBlock = await this.contract.currentBlock();
 
-    this.log('Bridge.directReplay', tx.gasUsed.toString());
-    Utils.dumpLogs(tx.logs, this.contract.interface);
+        if (lBlock.gt(cBlock)) {
+          // done
+          this.log(TAG, 'done', cumulative);
+          break;
+        }
+        let tx = await this.signer.sendTransaction(txData);
+        tx = await tx.wait();
+        cumulative += tx.cumulativeGasUsed.toNumber();
 
-    return true;
+        ctr++;
+
+        this.log(TAG, `step = ${ctr}`, tx.gasUsed.toString());
+        Utils.dumpLogs(tx.logs, this.contract.interface);
+      }
+    } catch (e) {
+      const cBlock = await this.contract.currentBlock();
+      if (cBlock.gte(block.number)) {
+        this.log(TAG, 'ALREADY COMPLETED');
+        return;
+      }
+
+      this.log(TAG, e);
+    }
   }
 };

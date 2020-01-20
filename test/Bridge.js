@@ -68,6 +68,24 @@ describe('Bridge/RPC', async function () {
   let walletCharlie;
   let testContract;
 
+  function sleep (ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function tryHaltSecondaryNodes (val) {
+    for (let i = 1; i < nodes.length; i++) {
+      try {
+        await nodes[i].send('debug_haltEvents', [val]);
+      } catch (e) {
+        // oops. node not available?
+        // try again
+        console.log(`trying to halt/resume nodes[${i}] failed. Retrying...`);
+        await sleep(100);
+        i--;
+      }
+    }
+  }
+
   async function erc20Transfer (...args) {
     const tx = await erc20.transfer(...args);
     transactions.push(tx.hash);
@@ -337,10 +355,6 @@ describe('Bridge/RPC', async function () {
     }
   }
 
-  function sleep (ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
   describe('Misc', async () => {
     [
       'VERSION',
@@ -376,7 +390,7 @@ describe('Bridge/RPC', async function () {
     });
 
     const raw = '0123456789abcdef';
-    const solution = Buffer.alloc(64);
+    const solution = Buffer.alloc(64).fill(0xff);
     const solutionHash = ethers.utils.keccak256(solution);
     let blockHash;
 
@@ -478,7 +492,7 @@ describe('Bridge/RPC', async function () {
 
     before(async () => {
       const maxSize = await bridge.MAX_SOLUTION_SIZE();
-      solution = Buffer.alloc(maxSize.toNumber() + 1);
+      solution = Buffer.alloc(maxSize.toNumber() + 1).fill(0xff);
       solutionHash = ethers.utils.keccak256(solution);
 
       const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
@@ -553,6 +567,8 @@ describe('Bridge/RPC', async function () {
     let blockHash;
 
     it('submitBlock', async () => {
+      await tryHaltSecondaryNodes(true);
+
       blockHash = await provider.send('debug_submitBlock', []);
     });
 
@@ -561,6 +577,8 @@ describe('Bridge/RPC', async function () {
       while (!found) {
         found = await provider.send('debug_directReplay', [blockHash]);
       }
+
+      await tryHaltSecondaryNodes(false);
     });
 
     it('Alice: Exit', async () => {
@@ -578,6 +596,8 @@ describe('Bridge/RPC', async function () {
     let blockHash;
 
     it('submitBlock', async () => {
+      await tryHaltSecondaryNodes(true);
+
       blockHash = await provider.send('debug_submitBlock', []);
     });
 
@@ -597,6 +617,8 @@ describe('Bridge/RPC', async function () {
       // TODO: this needs to take the gas costs into account once the Bridge supports that
       const bondAmount = BigInt(await bridge.BOND_AMOUNT()) / BigInt(2);
       assert.ok((BigInt(balanceAfter) - BigInt(balanceBefore)) >= bondAmount, 'balance - bond returned');
+
+      await tryHaltSecondaryNodes(false);
     });
 
     it('Alice: Exit', async () => {
@@ -608,6 +630,8 @@ describe('Bridge/RPC', async function () {
     doRound();
 
     it('submitBlock', async () => {
+      await tryHaltSecondaryNodes(true);
+
       const blockHash = await provider.send('debug_submitBlock', []);
 
       let found = false;
@@ -624,6 +648,8 @@ describe('Bridge/RPC', async function () {
       await provider.send('debug_directReplay', [blockHash]);
       canFinalize = await bridge.canFinalizeBlock(blockHash);
       assert.equal(canFinalize, false);
+
+      await tryHaltSecondaryNodes(false);
     });
   });
 
