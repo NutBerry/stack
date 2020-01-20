@@ -314,7 +314,7 @@ contract LEVM is Inventory {
   }
 
   /// @dev Internal function for executing(replay) transactions.
-  function _validateBlock () internal {
+  function _validateBlock (uint256 offset) internal returns (bool, uint256) {
     // a deposit-block
     if (_isSpecialBlock()) {
       // TODO: check for overflow?
@@ -330,79 +330,77 @@ contract LEVM is Inventory {
       newValue += value;
       setERC20(token, owner, newValue);
 
-      return;
+      return (true, 0);
     }
 
     uint256[5] memory params;
-    // function sig
-    uint256 offset = 4;
     uint256 length;
     assembly {
       length := calldatasize()
     }
 
     if (length < 65) {
-      return;
+      return (true, 0);
     }
 
-    while (offset < length) {
-      offset = _parseTx(offset, length, params);
+    if (offset >= length) {
+      return (true, 0);
+    }
 
-      if (offset == 0) {
-        break;
+    offset = _parseTx(offset, length, params);
+
+    address from = address(uint160(params[0]));
+
+    if (from == address(0)) {
+      // invalid sig
+      return (offset >= length, offset);
+    }
+
+    address to = address(uint160(params[1]));
+    uint256 nonce = params[2];
+    uint256 calldataOffset = params[3];
+    uint256 calldataLength = params[4];
+
+    // skip if the transaction nonce is not the expected one.
+    if (nonce != getNonce(from)) {
+      return (offset >= length, offset);
+    }
+
+    bytes4 funcSig;
+    assembly {
+      funcSig := calldataload(calldataOffset)
+    }
+    if (
+      funcSig == FUNC_SIG_BALANCE_OF ||
+      funcSig == FUNC_SIG_APPROVE ||
+      funcSig == FUNC_SIG_ALLOWANCE ||
+      funcSig == FUNC_SIG_TRANSFER ||
+      funcSig == FUNC_SIG_TRANSFER_FROM
+    ) {
+      bool success = _handleCall(from, to, calldataOffset, calldataLength);
+      // valid transactions must exit without error
+      if (!success) {
+        return (offset >= length, offset);
       }
-
-      address from = address(uint160(params[0]));
-
-      if (from == address(0)) {
-        // invalid sig
-        continue;
-      }
-
-      address to = address(uint160(params[1]));
-      uint256 nonce = params[2];
-      uint256 calldataOffset = params[3];
-      uint256 calldataLength = params[4];
-
-      // skip if the transaction nonce is not the expected one.
-      if (nonce != getNonce(from)) {
-        continue;
-      }
-
-      bytes4 funcSig;
+    } else {
+      // TODO: revert inventory state once we support arbitrary smart contracts
+      bytes memory c = new bytes(calldataLength);
       assembly {
-        funcSig := calldataload(calldataOffset)
+        calldatacopy(add(c, 32), calldataOffset, calldataLength)
+        // store our address to be used by the patched contract
+        // TO
+        sstore(0xaa, to)
+        // FROM
+        sstore(0xcc, from)
       }
-      if (
-        funcSig == FUNC_SIG_BALANCE_OF ||
-        funcSig == FUNC_SIG_APPROVE ||
-        funcSig == FUNC_SIG_ALLOWANCE ||
-        funcSig == FUNC_SIG_TRANSFER ||
-        funcSig == FUNC_SIG_TRANSFER_FROM
-      ) {
-        bool success = _handleCall(from, to, calldataOffset, calldataLength);
-        // valid transactions must exit without error
-        if (!success) {
-          continue;
-        }
-      } else {
-        // TODO: revert inventory state once we support arbitrary smart contracts
-        bytes memory c = new bytes(calldataLength);
-        assembly {
-          calldatacopy(add(c, 32), calldataOffset, calldataLength)
-          // store our address to be used by the patched contract
-          // TO
-          sstore(0xaa, to)
-          // FROM
-          sstore(0xcc, from)
-        }
-        bool success = _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
-        if (!success) {
-          continue;
-        }
+      bool success = _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
+      if (!success) {
+        return (offset >= length, offset);
       }
-
-      setNonce(from, nonce + 1);
     }
+
+    setNonce(from, nonce + 1);
+
+    return (offset >= length, offset);
   }
 }

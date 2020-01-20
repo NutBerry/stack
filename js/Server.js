@@ -80,6 +80,10 @@ module.exports = class Server {
       const func = Methods[method];
 
       try {
+        if (!this.bridge.ready) {
+          throw new Error('Bridge is not ready yet');
+        }
+
         body.result = await func(body, this.bridge);
         resp.end(JSON.stringify(body));
       } catch (e) {

@@ -32,7 +32,7 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
       BRIDGE_ADDRESS: contract.address,
       ROOT_RPC_URL: rpcUrl,
       DEBUG_MODE: 1,
-      EVENT_CHECK_MS: 30,
+      EVENT_CHECK_MS: 10,
     },
     process.env
   );

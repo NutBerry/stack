@@ -8,6 +8,9 @@ contract Bridge is _Bridge {
     createdAtBlock = block.number;
   }
 
+  // TODO/TBD
+  // Implement `evaluation`-interface for other contracts
+
   /// @dev Deposit `token` and value (`amountOrId`) into bridge.
   /// Only the ERC20 standard is supported for now.
   function deposit (address token, uint256 amountOrId) public {
@@ -104,13 +107,34 @@ contract Bridge is _Bridge {
 
   /// @dev Challenge a solution
   function dispute () public {
+    uint256 gasNow;
+    assembly {
+      gasNow := gas()
+    }
+
+    _checkCaller();
     // validate the data
     bytes32 blockHash = _blockHash(currentBlock + 1);
 
-    _checkCaller();
     // TODO: challenge needs to be chunkable once we support smart contracts
-    _resolveBlock(blockHash, msg.sender);
-    _validateBlock();
+    uint256 offsetStart = disputeOffset;
+    if (offsetStart == 0) {
+      // function sig
+      offsetStart = 4;
+    }
+
+    (bool complete, uint256 nextOffset) = _validateBlock(offsetStart);
+
+    if (complete) {
+      // if we are done, finalize this block
+      _resolveBlock(blockHash, msg.sender);
+      return;
+    }
+
+    disputeOffset = nextOffset;
+
+    // TODO: payout part of the bond!
+    // gas() - gasNow
   }
 
   /// @dev Returns true if `blockHash` can be finalized, else false.
@@ -123,7 +147,7 @@ contract Bridge is _Bridge {
 
     // TODO
     // if chunkable disputes lands, check for open dispute
-    return true;
+    return disputeOffset == 0;
   }
 
   /// @dev Finalize solution and move to the next block.
