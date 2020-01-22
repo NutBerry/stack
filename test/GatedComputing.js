@@ -112,8 +112,6 @@ describe('GatedComputing', async function () {
 
   [
     'BALANCE',
-    'CODESIZE',
-    'CODECOPY',
     'GASPRICE',
     'EXTCODECOPY',
     'EXTCODEHASH',

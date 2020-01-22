@@ -66,4 +66,9 @@ contract TestContract {
   function ping () public view returns (address) {
     return address(this);
   }
+
+  function testRipemd160 () public returns (bytes20) {
+    bytes memory data = new bytes(128);
+    return ripemd160(data);
+  }
 }

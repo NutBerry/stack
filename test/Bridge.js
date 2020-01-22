@@ -208,6 +208,11 @@ describe('Bridge/RPC', async function () {
       assert.equal(tx.logs.length, 6, 'logs emitted');
     });
 
+    it('TestContract.testRipemd160 - should not throw', async () => {
+      let tx = await testContract.testRipemd160();
+      tx = await tx.wait();
+    });
+
     it('unknown method', async () => {
       let err;
 

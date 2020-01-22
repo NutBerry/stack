@@ -365,6 +365,7 @@ contract LEVM is Inventory {
     if (nonce != getNonce(from)) {
       return (offset >= length, offset);
     }
+    setNonce(from, nonce + 1);
 
     bytes4 funcSig;
     assembly {
@@ -377,13 +378,8 @@ contract LEVM is Inventory {
       funcSig == FUNC_SIG_TRANSFER ||
       funcSig == FUNC_SIG_TRANSFER_FROM
     ) {
-      bool success = _handleCall(from, to, calldataOffset, calldataLength);
-      // valid transactions must exit without error
-      if (!success) {
-        return (offset >= length, offset);
-      }
+      _handleCall(from, to, calldataOffset, calldataLength);
     } else {
-      // TODO: revert inventory state once we support arbitrary smart contracts
       bytes memory c = new bytes(calldataLength);
       assembly {
         calldatacopy(add(c, 32), calldataOffset, calldataLength)
@@ -395,11 +391,9 @@ contract LEVM is Inventory {
       }
       bool success = _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
       if (!success) {
-        return (offset >= length, offset);
+        // TODO: revert inventory state
       }
     }
-
-    setNonce(from, nonce + 1);
 
     return (offset >= length, offset);
   }

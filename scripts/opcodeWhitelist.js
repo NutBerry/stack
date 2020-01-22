@@ -37,6 +37,8 @@ const allowed = [
   Constants.CALLDATALOAD,
   Constants.CALLDATASIZE,
   Constants.CALLDATACOPY,
+  Constants.CODESIZE,
+  Constants.CODECOPY,
   Constants.EXTCODESIZE,
   Constants.RETURNDATASIZE,
   Constants.RETURNDATACOPY,

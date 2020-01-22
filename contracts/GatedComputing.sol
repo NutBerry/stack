@@ -5,138 +5,191 @@ contract GatedComputing {
   function () external {
     assembly {
       function maybePatch (opcode, memOff) -> off {
-        off := add(memOff, 1)
+        function writeByte (a, b) -> c {
+          mstore8(a, b)
+          c := add(a, 1)
+        }
 
         switch opcode
         // ADDRESS
-        case 48 {
+        case 0x30 {
           // PUSH1
-          mstore8(memOff, 96)
+          memOff := writeByte(memOff, 0x60)
           // 0xaa
-          mstore8(add(memOff, 1), 0xaa)
+          memOff := writeByte(memOff, 0xaa)
           // SLOAD
-          mstore8(add(memOff, 2), 0x54)
-          off := add(memOff, 3)
+          memOff := writeByte(memOff, 0x54)
         }
         // ORIGIN
-        case 50 {
+        case 0x32 {
           // PUSH1
-          mstore8(memOff, 96)
+          memOff := writeByte(memOff, 0x60)
           // 0xcc
-          mstore8(add(memOff, 1), 0xcc)
+          memOff := writeByte(memOff, 0xcc)
           // SLOAD
-          mstore8(add(memOff, 2), 0x54)
-          off := add(memOff, 3)
+          memOff := writeByte(memOff, 0x54)
         }
         // CALLER
-        case 51 {
+        case 0x33 {
           // PUSH1
-          mstore8(memOff, 96)
+          memOff := writeByte(memOff, 0x60)
           // 0xcc
-          mstore8(add(memOff, 1), 0xcc)
+          memOff := writeByte(memOff, 0xcc)
           // SLOAD
-          mstore8(add(memOff, 2), 0x54)
-          off := add(memOff, 3)
+          memOff := writeByte(memOff, 0x54)
         }
         // EXTCODESIZE
-        case 59 {
+        case 0x3b {
           // JUMPDEST
-          mstore8(memOff, 0x5b)
+          memOff := writeByte(memOff, 0x5b)
         }
         // LOG0
         case 0xa0 {
           // POP
-          mstore8(memOff, 80)
-          mstore8(add(memOff, 1), 80)
-          off := add(memOff, 2)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
         }
         // LOG1
         case 0xa1 {
           // POP
-          mstore8(memOff, 80)
-          mstore8(add(memOff, 1), 80)
-          mstore8(add(memOff, 2), 80)
-          off := add(memOff, 3)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
         }
         // LOG2
         case 0xa2 {
           // POP
-          mstore8(memOff, 80)
-          mstore8(add(memOff, 1), 80)
-          mstore8(add(memOff, 2), 80)
-          mstore8(add(memOff, 3), 80)
-          off := add(memOff, 4)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
         }
         // LOG3
         case 0xa3 {
           // POP
-          mstore8(memOff, 80)
-          mstore8(add(memOff, 1), 80)
-          mstore8(add(memOff, 2), 80)
-          mstore8(add(memOff, 3), 80)
-          mstore8(add(memOff, 4), 80)
-          off := add(memOff, 5)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
         }
         // LOG4
         case 0xa4 {
           // POP
-          mstore8(memOff, 80)
-          mstore8(add(memOff, 1), 80)
-          mstore8(add(memOff, 2), 80)
-          mstore8(add(memOff, 3), 80)
-          mstore8(add(memOff, 4), 80)
-          mstore8(add(memOff, 5), 80)
-          off := add(memOff, 6)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
+          memOff := writeByte(memOff, 0x50)
         }
         // CALL
-        case 241 {
-          // TODO: allow specific precompiles and supported calls,
-          // forward supported calls to caller
-          // gas address value inOffset inSize outOffset outSize
-
+        case 0xf1 {
           // POP - gas
-          mstore8(memOff, 80)
+          memOff := writeByte(memOff, 0x50)
           // PUSH1
-          mstore8(add(memOff, 1), 96)
+          memOff := writeByte(memOff, 0x60)
           // 0xbb
-          mstore8(add(memOff, 2), 0xbb)
+          memOff := writeByte(memOff, 0xbb)
           // SSTORE - (0xbb, a)
-          mstore8(add(memOff, 3), 85)
+          memOff := writeByte(memOff, 0x55)
           // CALLER
-          mstore8(add(memOff, 4), 51)
+          memOff := writeByte(memOff, 0x33)
           // GAS
-          mstore8(add(memOff, 5), 90)
+          memOff := writeByte(memOff, 0x5a)
           // CALLCODE
-          mstore8(add(memOff, 6), 242)
-          off := add(memOff, 7)
+          memOff := writeByte(memOff, 0xf2)
         }
         // STATICCALL
-        case 250 {
+        case 0xfa {
+          // SWAP1
+          memOff := writeByte(memOff, 0x90)
+          // DUP1
+          memOff := writeByte(memOff, 0x80)
+          // PUSH1 10
+          memOff := writeByte(memOff, 0x60)
+          memOff := writeByte(memOff, 10)
+          // LT 10 <ADDR>
+          memOff := writeByte(memOff, 0x10)
+          // PUSH1 <offset>
+          memOff := writeByte(memOff, 0x60)
+          // <offset>
+          memOff := writeByte(memOff, 10)
+          // PC
+          memOff := writeByte(memOff, 0x58)
+          // ADD
+          memOff := writeByte(memOff, 0x01)
+          // JUMPI
+          memOff := writeByte(memOff, 0x57)
+          // SWAP1 - reverse first operation
+          memOff := writeByte(memOff, 0x90)
+          // STATICCALL
+          memOff := writeByte(memOff, 0xfa)
+          // PUSH 1
+          memOff := writeByte(memOff, 0x60)
+          // <offset>
+          memOff := writeByte(memOff, 13)
+          // PC
+          memOff := writeByte(memOff, 0x58)
+          // ADD
+          memOff := writeByte(memOff, 0x01)
+          // JUMP
+          memOff := writeByte(memOff, 0x56)
+
+          // JUMPDEST
+          memOff := writeByte(memOff, 0x5b)
+          // SWAP1 - reverse first operation
+          memOff := writeByte(memOff, 0x90)
           // POP - gas
-          mstore8(memOff, 80)
+          memOff := writeByte(memOff, 0x50)
           // PUSH1
-          mstore8(add(memOff, 1), 96)
+          memOff := writeByte(memOff, 0x60)
           // 0xbb
-          mstore8(add(memOff, 2), 0xbb)
+          memOff := writeByte(memOff, 0xbb)
           // SSTORE - (0xbb, a)
-          mstore8(add(memOff, 3), 85)
+          memOff := writeByte(memOff, 0x55)
           // 0 - CALLVALUE
-          mstore8(add(memOff, 4), 52)
+          memOff := writeByte(memOff, 0x34)
           // CALLER
-          mstore8(add(memOff, 5), 51)
+          memOff := writeByte(memOff, 0x33)
           // GAS
-          mstore8(add(memOff, 6), 90)
+          memOff := writeByte(memOff, 0x5a)
           // CALLCODE
-          mstore8(add(memOff, 7), 242)
-          off := add(memOff, 8)
+          memOff := writeByte(memOff, 0xf2)
+          // JUMPDEST
+          memOff := writeByte(memOff, 0x5b)
+        }
+        // CODESIZE
+        case 0x38 {
+          // PUSH1
+          memOff := writeByte(memOff, 0x60)
+          // 0xaa
+          memOff := writeByte(memOff, 0xaa)
+          // SLOAD
+          memOff := writeByte(memOff, 0x54)
+          // EXTCODESIZE
+          memOff := writeByte(memOff, 0x3b)
+        }
+        // CODECOPY
+        case 0x39 {
+          // PUSH1
+          memOff := writeByte(memOff, 0x60)
+          // 0xaa
+          memOff := writeByte(memOff, 0xaa)
+          // SLOAD
+          memOff := writeByte(memOff, 0x54)
+          // EXTCODECOPY
+          memOff := writeByte(memOff, 0x3c)
         }
         default {
-          let op := 254
-          if and(shl(opcode, 1), 0x640a0000000000000000001fffffffffffffffff0fcf000068fd00013fff0fff) {
+          let op := 0xfe
+          if and(shl(opcode, 1), 0x640a0000000000000000001fffffffffffffffff0fcf00006bfd00013fff0fff) {
             op := opcode
           }
-          mstore8(memOff, op)
+          memOff := writeByte(memOff, op)
         }
+
+        off := memOff
       }
 
       let offset := 8192
@@ -157,7 +210,7 @@ contract GatedComputing {
         // JUMP
         if eq(opcode, 86) {
           // PUSH1
-          mstore8(offset, 96)
+          mstore8(offset, 0x60)
           // trampoline
           mstore8(add(offset, 1), 4)
           // JUMP
@@ -171,7 +224,7 @@ contract GatedComputing {
           // SWAP 1
           mstore8(offset, 144)
           // PUSH 1
-          mstore8(add(offset, 1), 96)
+          mstore8(add(offset, 1), 0x60)
           // 4
           mstore8(add(offset, 2), 4)
           // JUMPI

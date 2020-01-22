@@ -84,11 +84,8 @@ module.exports = class Block {
 
       this.log(`${tx.from}:${tx.nonce}:${tx.hash}`);
 
-      // TODO
-      // save transaction receipts for reverted transactions
       if (errno !== 0) {
         this.log('invalid tx', tx.hash);
-        return null;
       }
 
       tx.logs = logs;
