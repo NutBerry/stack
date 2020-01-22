@@ -76,20 +76,6 @@ contract TestGatedComputing is LEVM {
     }
   }
 
-  function CODESIZE () public {
-    assembly {
-      let val := codesize()
-      log1(0, 0, val)
-    }
-  }
-
-  function CODECOPY () public {
-    assembly {
-      codecopy(0, 0, 32)
-      log1(0, 0, mload(0))
-    }
-  }
-
   function GASPRICE () public {
     assembly {
       let val := gasprice()
