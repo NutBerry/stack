@@ -91,6 +91,8 @@ describe('NutBerryRuntime', function () {
       }
     );
 
+    state.customEnvironment.storageKeys = {};
+    copy.storageKeys = {};
     assert.deepEqual(state.customEnvironment.toJSON(), copy.toJSON(), 'hofmann struct should be correct');
   });
 

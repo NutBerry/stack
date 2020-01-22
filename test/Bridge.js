@@ -184,6 +184,10 @@ describe('Bridge/RPC', async function () {
       assert.equal(balance.toHexString(), value, 'balance');
     });
 
+    it('debug_forwardChain', async () => {
+      await provider.send('debug_forwardChain', []);
+    });
+
     it('TestContract.test', async () => {
       let tx = await erc20.approve(testContract.address, '0xff');
       tx = await tx.wait();

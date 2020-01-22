@@ -35,6 +35,9 @@ jobs:
     - name: Lint
       run: yarn lint
 
+    - name: test:evm
+      run: yarn test:evm
+
     - name: Coverage
       run: yarn coverage
 

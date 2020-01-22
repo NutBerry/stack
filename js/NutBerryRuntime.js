@@ -1,6 +1,6 @@
 'use strict';
 
-const { EVMRuntime, BN } = require('../evm/utils');
+const { EVMRuntime, BN } = require('../evm/js/index.js');
 
 module.exports = class NutBerryRuntime extends EVMRuntime {
   async initRunState (obj) {

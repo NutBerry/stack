@@ -15,6 +15,7 @@ const TOPIC_BEACON = '0x98f7f6a06026bc1e4789634d93bff8d19b1c3b070cc440b6a6ae70ba
 const TOPIC_SOLUTION = '0x8f83eb5964d76be4a4f1e1f29afb7dabf96121727cae0afe196f30d4e57e9a48';
 
 const FUNC_SIG_DISPUTE = '0xf240f7c3';
+const BIG_ZERO = BigInt(0);
 
 /// @dev Glue for everything.
 module.exports = class Bridge {
@@ -36,8 +37,6 @@ module.exports = class Bridge {
       this.log('Warning: No private key - Using random wallet');
       this.signer = ethers.Wallet.createRandom().connect(this.rootProvider);
     }
-    // TODO - remove this
-    global.provider = this.rootProvider;
 
     this.contract = new ethers.Contract(options.contract, BRIDGE_ABI, this.signer);
     this.eventFilter = {
@@ -135,42 +134,51 @@ module.exports = class Bridge {
     }
   }
 
-  async _updateLoop () {
-    try {
-      // TODO
-      // that needs to honour submission thresholds
-      if (this.currentBlock.transactionHashes.length) {
-        this.log('submitting block...');
-        const blockHash = await this.currentBlock.submitBlock(this);
-      }
+  async forwardChain () {
+    // TODO
+    // that needs to honour submission thresholds
+    if (this.currentBlock.transactionHashes.length) {
+      this.log('submitting block...');
+      const blockHash = await this.currentBlock.submitBlock(this);
+    }
 
-      // finalize or submit solution, if possible
-      {
-        const currentBlock = await this.contract.currentBlock();
-        const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
+    // finalize or submit solution, if possible
+    {
+      const currentBlock = await this.contract.currentBlock();
+      // fetch the latest block excluding `currentBlock`
+      const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
 
-        // we found the next pending block
-        if (block && block.hash) {
-          const canFinalize = await this.contract.canFinalizeBlock(block.hash);
+      // we found the next pending block
+      if (block && block.hash) {
+        const canFinalize = await this.contract.canFinalizeBlock(block.hash);
 
-          if (canFinalize) {
-            this.log(`Can finalize pending block: ${canFinalize}`);
+        if (canFinalize) {
+          this.log(`Can finalize pending block: ${canFinalize}`);
 
-            const ok = await this.finalizeSolution(block.hash);
-            this.log(`finalizeSolution: ${ok}`);
-            return;
-          }
+          const ok = await this.finalizeSolution(block.hash);
+          this.log(`finalizeSolution: ${ok}`);
+          return;
+        }
 
+        // probably a deposit block
+        if (block.transactionHashes.length === 0) {
+          await this.directReplay(block.hash);
+        } else {
           // no solution yet, submit one
           if (await this.submitSolution(block.hash)) {
             this.log(`submitted solution for ${block.number}`);
           }
         }
       }
+    }
+  }
+
+  async _updateLoop () {
+    try {
+      await this.forwardChain();
     } catch (e) {
       this.log(e);
     }
-
     setTimeout(this._updateLoop.bind(this), this.updateCheckMs);
   }
 
@@ -222,13 +230,6 @@ module.exports = class Bridge {
 
     this.log(`new Deposit-Block ${block.number}/${block.hash}`);
     this.addBlock(block);
-
-    // TODO: queue this like all the other blocks
-    try {
-      await this.directReplay(block.hash);
-    } catch (e) {
-      this.log('directReplay', e);
-    }
   }
 
   async onBlockBeacon (tx) {
@@ -273,7 +274,7 @@ module.exports = class Bridge {
         };
         const signed = ethers.utils.serializeTransaction(tx, { r, s, v });
 
-        await block.addTransaction(signed);
+        await block.addTransaction(signed, this);
       } catch (e) {
         this.log('TODO - proper tx parsing');
       }
@@ -353,22 +354,12 @@ module.exports = class Bridge {
   async addBlock (block) {
     this.blocks.push(block);
     await this.currentBlock.refactor(block, this);
-
-    if (!this.debugMode) {
-      try {
-        if (await this.isCurrentBlock(block.number)) {
-          await this.submitSolution(block.hash);
-        }
-      } catch (e) {
-        this.log(e);
-      }
-    }
   }
 
   async getNonce (addr) {
     const nonce = this.currentBlock.nonces[addr.toLowerCase()];
 
-    return nonce | 0;
+    return nonce || BIG_ZERO;
   }
 
   getTransaction (txHash) {
@@ -380,7 +371,7 @@ module.exports = class Bridge {
   }
 
   async runTx ({ data }) {
-    const txHash = await this.currentBlock.addTransaction(data);
+    const txHash = await this.currentBlock.addTransaction(data, this);
 
     if (!txHash) {
       throw new Error('Invalid transaction');

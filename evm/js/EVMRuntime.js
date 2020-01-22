@@ -3,8 +3,7 @@
 const utils = require('ethereumjs-util');
 const BN = utils.BN;
 
-const OP = require('./constants');
-const OPCODES = require('./Opcodes');
+const OPCODES = require('./Opcodes.js');
 
 const PRECOMPILED = {
   '1': require('./precompiled/01-ecrecover.js'),
@@ -48,9 +47,6 @@ function VmError (error) {
 };
 
 const ADDRESS_ZERO_BUF = Buffer.alloc(20);
-
-// 256x32 bytes
-const MAX_MEM_WORD_COUNT = new BN(256);
 
 function NumToBuf32 (val) {
   val = val.toString(16);
@@ -110,7 +106,6 @@ module.exports = class EVMRuntime {
         throw new VmError(ERROR.STACK_OVERFLOW);
       }
 
-      // TODO: add step number
       runState.programCounter++;
 
       await this['handle' + opName](runState);
@@ -124,9 +119,9 @@ module.exports = class EVMRuntime {
       runState.vmError = true;
     }
 
-    if (runState.memoryWordCount.gt(MAX_MEM_WORD_COUNT)) {
-      //runState.vmError = true;
-      //errno = OP.ERROR_INTERNAL;
+    if (errno !== 0 || runState.stopped) {
+      // pc should not be incremented, reverse the above
+      runState.programCounter--;
     }
 
     runState.errno = errno;

@@ -6,6 +6,10 @@ const Inventory = require('./Inventory.js');
 const NutBerryRuntime = require('./NutBerryRuntime.js');
 const Utils = require('./Utils.js');
 
+const FUNC_SIG_SUBMIT_BLOCK = '0x25ceb4b2';
+const BIG_ZERO = BigInt(0);
+const BIG_ONE = BigInt(1);
+
 module.exports = class Block {
   constructor (prevBlock) {
     // previous block - if applicable
@@ -62,12 +66,12 @@ module.exports = class Block {
       }
 
       this.log('Refactor:Adding tx');
-      await this.addTransaction(tx);
+      await this.addTransaction(tx, bridge);
     }
     this.log(`Refactor:Complete ${this.transactionHashes.length} transactions left`);
   }
 
-  async addTransaction (data) {
+  async addTransaction (data, bridge) {
     const tx = ethers.utils.parseTransaction(data);
 
     tx.gasPrice = tx.gasPrice.toHexString();
@@ -76,11 +80,12 @@ module.exports = class Block {
     tx.from = tx.from.toLowerCase();
     tx.to = tx.to.toLowerCase();
     tx.raw = data;
+    tx.nonce = BigInt(tx.nonce);
 
-    const expectedNonce = this.nonces[tx.from] | 0;
+    const expectedNonce = this.nonces[tx.from] || BIG_ZERO;
 
     if (this.validateTransaction(tx, expectedNonce)) {
-      const { errno, returnValue, logs } = await this.executeTx(tx);
+      const { errno, returnValue, logs } = await this.executeTx(tx, bridge);
 
       this.log(`${tx.from}:${tx.nonce}:${tx.hash}`);
 
@@ -89,9 +94,8 @@ module.exports = class Block {
       }
 
       tx.logs = logs;
-      // TODO: BigInt
-      this.nonces[tx.from] = tx.nonce + 1;
-      this.inventory.trackNonce(tx.from, tx.nonce + 1);
+      this.nonces[tx.from] = tx.nonce + BIG_ONE;
+      this.inventory.trackNonce(tx.from, tx.nonce + BIG_ONE);
       this.transactions[tx.hash] = tx;
       this.transactionHashes.push(tx.hash);
 
@@ -132,8 +136,8 @@ module.exports = class Block {
     return true;
   }
 
-  async dryExecuteTx (tx) {
-    const { errno, returnValue, logs } = await this.executeTx(tx, true);
+  async dryExecuteTx (tx, bridge) {
+    const { errno, returnValue, logs } = await this.executeTx(tx, bridge, true);
 
     if (errno !== 0) {
       return '0x';
@@ -142,8 +146,8 @@ module.exports = class Block {
     return returnValue;
   }
 
-  async executeTx (tx, dry) {
-    const customEnvironment = dry ? this.inventory.clone() : this.inventory;
+  async executeTx (tx, bridge, dry) {
+    const customEnvironment = this.inventory.clone();
 
     // TODO
     const FUNC_SIG_BALANCE_OF = '0x70a08231';
@@ -169,28 +173,26 @@ module.exports = class Block {
       !tx.data.startsWith(FUNC_SIG_WRITE_DATA) &&
       !tx.data.startsWith(FUNC_SIG_BREED)
     ) {
-      // eslint-disable-next-line no-undef
-      let code = await provider.getCode(tx.to);
-      // TODO: run the patched version of the contract?
-      code = Utils.toUint8Array(code);
-      const caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
-      // this is a contract
+      const code = Utils.toUint8Array(await bridge.rootProvider.getCode(tx.to));
       const data = Utils.toUint8Array(tx.data);
+      const caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
       const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
       const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
-      // TODO: copy / snapshot inventory
       const runtime = new NutBerryRuntime();
       const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
 
       if (state.errno !== 0) {
-        // TODO: revert state once we support arbitrary contracts
         this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);
+      } else {
+        if (!dry) {
+          this.inventory = customEnvironment;
+        }
       }
 
       return {
         errno: state.errno,
         returnValue: `0x${state.returnValue.toString('hex')}`,
-        logs: state.logs,
+        logs: state.errno === 0 ? state.logs : [],
       };
     }
 
@@ -202,6 +204,11 @@ module.exports = class Block {
     const data = tx.data.replace('0x', '');
     const [ret, logs] = customEnvironment.handleCall(msgSender, to, target, data) || '0x';
     const errno = ret === '0x' ? 7 : 0;
+
+    if (errno === 0 && !dry) {
+      this.inventory = customEnvironment;
+    }
+
     // TODO
     return {
       errno: errno,
@@ -259,7 +266,7 @@ module.exports = class Block {
     const rawData = transactions.join('');
     const txData = {
       to: bridge.contract.address,
-      data: '0x25ceb4b2' + rawData,
+      data: FUNC_SIG_SUBMIT_BLOCK + rawData,
       value: bridge.bondAmount,
     };
 
@@ -285,6 +292,7 @@ module.exports = class Block {
 
   /// @dev Computes the solution for this Block.
   async computeSolution (bridge, doItWrong) {
+    // TODO: check for MAX_SOLUTION_SIZE
     const storageKeys = this.inventory.storageKeys;
     const keys = Object.keys(storageKeys);
 
