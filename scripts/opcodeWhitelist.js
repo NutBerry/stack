@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { Constants } = require('../evm/utils/');
+const { Constants } = require('../evm/js/index.js');
 const allowed = [
   Constants.STOP,
   Constants.ADD,

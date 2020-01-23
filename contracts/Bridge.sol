@@ -145,8 +145,7 @@ contract Bridge is _Bridge {
       return false;
     }
 
-    // TODO
-    // if chunkable disputes lands, check for open dispute
+    // if there is no active dispute
     return disputeOffset == 0;
   }
 
@@ -183,6 +182,9 @@ contract Bridge is _Bridge {
         let key := calldataload(ptr)
         let val := calldataload(add(ptr, 0x20))
 
+        if lt(key, 0xffff) {
+          revert(0, 0)
+        }
         sstore(key, val)
       }
     }

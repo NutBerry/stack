@@ -184,6 +184,10 @@ describe('Bridge/RPC', async function () {
       assert.equal(balance.toHexString(), value, 'balance');
     });
 
+    it('debug_forwardChain', async () => {
+      await provider.send('debug_forwardChain', []);
+    });
+
     it('TestContract.test', async () => {
       let tx = await erc20.approve(testContract.address, '0xff');
       tx = await tx.wait();
@@ -383,6 +387,104 @@ describe('Bridge/RPC', async function () {
     );
   });
 
+  describe('Deposit/Withdraw', async () => {
+    it('approve', async () => {
+      let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
+      tx = await tx.wait();
+    });
+
+    it('lock', async () => {
+      let tx = await erc20Root.lock(true);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should throw', async () => {
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+    });
+
+    it('unlock', async () => {
+      let tx = await erc20Root.lock(false);
+      tx = await tx.wait();
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should not throw', async () => {
+      let tx = await bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 });
+      tx = await tx.wait();
+    });
+
+    it('ret = false', async () => {
+      let tx = await erc20Root.ret(false);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should throw', async () => {
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('exit transfer', async () => {
+      let tx = await erc20Transfer(ADDRESS_ZERO, 1);
+      tx = await tx.wait();
+    });
+
+    it('finalize exit', async () => {
+      // finalize deposit
+      await provider.send('debug_forwardChain', []);
+      await produceBlocks(1);
+      // submit solution / finalize
+      await provider.send('debug_forwardChain', []);
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+      await provider.send('debug_forwardChain', []);
+    });
+
+    it('exit balance', async () => {
+      const exitBalance = await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
+      assert.equal(exitBalance, '1');
+    });
+
+    it('lock', async () => {
+      let tx = await erc20Root.lock(true);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should throw', async () => {
+      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 }));
+    });
+
+    it('unlock', async () => {
+      let tx = await erc20Root.lock(false);
+      tx = await tx.wait();
+    });
+
+    it('ret = false', async () => {
+      let tx = await erc20Root.ret(false);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should throw', async () => {
+      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 }));
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should not throw', async () => {
+      let tx = await bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 });
+      tx = await tx.wait();
+    });
+  });
+
   describe('Invalid Block', async () => {
     it('halt event processing', async () => {
       nodes.forEach(
@@ -536,6 +638,61 @@ describe('Bridge/RPC', async function () {
     });
 
     it('finalizeSolution should throw - solution too large', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+
+      const canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.ok(canFinalize, 'canFinalizeBlock');
+
+      await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
+    });
+
+    it('dispute', async () => {
+      const tx = await (
+        await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xf240f7c3' + raw,
+          }
+        )
+      ).wait();
+    });
+  });
+
+  describe('Invalid Block, solution & dispute', async () => {
+    const raw = '0123456789abcdef';
+    let solution;
+    let solutionHash;
+    let blockHash;
+
+    before(async () => {
+      solution =
+        '0x0000000000000000000000000000000000000000000000000000000000000001' +
+        '00000000000000000000000000000000000000000000000000000000000000ff';
+      solutionHash = ethers.utils.keccak256(solution);
+
+      const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
+      blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
+    });
+
+    it('submitBlock should not throw', async () => {
+      const tx = await (
+        await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0x25ceb4b2' + raw,
+            value: await bridge.BOND_AMOUNT(),
+          }
+        )
+      ).wait();
+    });
+
+    it('submitSolution', async () => {
+      const tx = await (
+        await bridge.submitSolution(blockHash, solutionHash)
+      ).wait();
+    });
+
+    it('finalizeSolution - should throw', async () => {
       await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
 
       const canFinalize = await bridge.canFinalizeBlock(blockHash);

@@ -34,6 +34,10 @@ module.exports = class Methods {
     return bridge._debugHaltEvents;
   }
 
+  static 'debug_forwardChain' (obj, bridge) {
+    return bridge.forwardChain();
+  }
+
   static 'web3_clientVersion' (obj, bridge) {
     return bridge.contract.address;
   }
@@ -88,7 +92,8 @@ module.exports = class Methods {
   static async 'eth_getTransactionCount' (obj, bridge) {
     // TODO: pending, latest
     // currently returns pending-nonce
-    return bridge.getNonce(obj.params[0]);
+    const nonce = await bridge.getNonce(obj.params[0]);
+    return `0x${nonce.toString(16)}`;
   }
 
   static async 'eth_estimateGas' (obj) {

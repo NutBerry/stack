@@ -8,10 +8,11 @@
   },
   "main": "js/index.js",
  "scripts": {
-    "lint": "eslint scripts/ js/ test/ evm/utils evm/test && solhint contracts/**/*{.sol,.slb}",
+    "lint": "eslint scripts/ js/ test/ evm/js evm/test && solhint contracts/**/*{.sol,.slb}",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 scripts/geth.js",
     "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --exit --timeout=900000",
+    "test:evm": "mocha --exit evm/test",
     "coverage": "yarn compile && yarn geth && develatus-apparatus"
   },
   "dependencies": {

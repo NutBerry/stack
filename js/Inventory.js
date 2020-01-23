@@ -49,6 +49,7 @@ module.exports = class Inventory {
       ret.addToken(obj.bag[i]);
     }
     ret.allowances = obj.allowances;
+    ret.storageKeys = obj.storageKeys;
 
     return ret;
   }
@@ -62,8 +63,9 @@ module.exports = class Inventory {
   toJSON () {
     const bag = this._dumpBag(this.tokenBag);
     const allowances = Object.assign({}, this.allowances);
+    const storageKeys = Object.assign({}, this.storageKeys);
 
-    return { bag, allowances };
+    return { bag, allowances, storageKeys };
   }
 
   _dumpBag (bag) {
