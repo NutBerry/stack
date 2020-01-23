@@ -437,13 +437,17 @@ describe('Bridge/RPC', async function () {
     });
 
     it('finalize exit', async () => {
-      // finalize deposit
-      await provider.send('debug_forwardChain', []);
-      await produceBlocks(1);
-      // submit solution / finalize
-      await provider.send('debug_forwardChain', []);
-      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
-      await provider.send('debug_forwardChain', []);
+      const exitBalance = await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
+
+      await waitForValueChange(
+        exitBalance,
+        async function () {
+          await provider.send('debug_forwardChain', []);
+          await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+
+          return await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
+        }
+      );
     });
 
     it('exit balance', async () => {
@@ -485,7 +489,7 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Invalid Block', async () => {
+  describe('Nodes', function () {
     it('halt event processing', async () => {
       nodes.forEach(
         async (provider) => {
@@ -495,7 +499,9 @@ describe('Bridge/RPC', async function () {
         }
       );
     });
+  });
 
+  describe('Invalid Block', async () => {
     const raw = '0123456789abcdef';
     const solution = Buffer.alloc(64).fill(0xff);
     const solutionHash = ethers.utils.keccak256(solution);
@@ -711,7 +717,9 @@ describe('Bridge/RPC', async function () {
         )
       ).wait();
     });
+  });
 
+  describe('Nodes', function () {
     it('resume event processing', async () => {
       nodes.forEach(
         async (provider) => {
