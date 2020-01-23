@@ -387,6 +387,104 @@ describe('Bridge/RPC', async function () {
     );
   });
 
+  describe('Deposit/Withdraw', async () => {
+    it('approve', async () => {
+      let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
+      tx = await tx.wait();
+    });
+
+    it('lock', async () => {
+      let tx = await erc20Root.lock(true);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should throw', async () => {
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+    });
+
+    it('unlock', async () => {
+      let tx = await erc20Root.lock(false);
+      tx = await tx.wait();
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should not throw', async () => {
+      let tx = await bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 });
+      tx = await tx.wait();
+    });
+
+    it('ret = false', async () => {
+      let tx = await erc20Root.ret(false);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should throw', async () => {
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('exit transfer', async () => {
+      let tx = await erc20Transfer(ADDRESS_ZERO, 1);
+      tx = await tx.wait();
+    });
+
+    it('finalize exit', async () => {
+      // finalize deposit
+      await provider.send('debug_forwardChain', []);
+      await produceBlocks(1);
+      // submit solution / finalize
+      await provider.send('debug_forwardChain', []);
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+      await provider.send('debug_forwardChain', []);
+    });
+
+    it('exit balance', async () => {
+      const exitBalance = await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
+      assert.equal(exitBalance, '1');
+    });
+
+    it('lock', async () => {
+      let tx = await erc20Root.lock(true);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should throw', async () => {
+      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 }));
+    });
+
+    it('unlock', async () => {
+      let tx = await erc20Root.lock(false);
+      tx = await tx.wait();
+    });
+
+    it('ret = false', async () => {
+      let tx = await erc20Root.ret(false);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should throw', async () => {
+      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 }));
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
+    });
+
+    it('withdraw - should not throw', async () => {
+      let tx = await bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 });
+      tx = await tx.wait();
+    });
+  });
+
   describe('Invalid Block', async () => {
     it('halt event processing', async () => {
       nodes.forEach(
