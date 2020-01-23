@@ -157,16 +157,15 @@ module.exports = class Bridge {
 
           const ok = await this.finalizeSolution(block.hash);
           this.log(`finalizeSolution: ${ok}`);
-          return;
-        }
-
-        // probably a deposit block
-        if (block.transactionHashes.length === 0) {
-          await this.directReplay(block.hash);
         } else {
-          // no solution yet, submit one
-          if (await this.submitSolution(block.hash)) {
-            this.log(`submitted solution for ${block.number}`);
+          // probably a deposit block
+          if (block.transactionHashes.length === 0) {
+            await this.directReplay(block.hash);
+          } else {
+            // no solution yet, submit one
+            if (await this.submitSolution(block.hash)) {
+              this.log(`submitted solution for ${block.number}`);
+            }
           }
         }
       }

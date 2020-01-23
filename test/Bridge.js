@@ -446,8 +446,8 @@ describe('Bridge/RPC', async function () {
       await waitForValueChange(
         exitBalance,
         async function () {
-          await provider.send('debug_forwardChain', []);
           await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+          await provider.send('debug_forwardChain', []);
 
           return await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
         }

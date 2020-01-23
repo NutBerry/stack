@@ -66,7 +66,7 @@ module.exports = class Block {
       }
 
       this.log('Refactor:Adding tx');
-      await this.addTransaction(tx, bridge);
+      await this.addTransaction(tx.raw, bridge);
     }
     this.log(`Refactor:Complete ${this.transactionHashes.length} transactions left`);
   }
