@@ -388,6 +388,10 @@ describe('Bridge/RPC', async function () {
   });
 
   describe('Deposit/Withdraw', async () => {
+    it('haltSecondaryNodes', async () => {
+      await tryHaltSecondaryNodes(true);
+    });
+
     it('approve', async () => {
       let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
       tx = await tx.wait();
