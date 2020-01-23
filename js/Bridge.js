@@ -162,7 +162,8 @@ module.exports = class Bridge {
           if (block.transactionHashes.length === 0) {
             await this.directReplay(block.hash);
           } else {
-            // no solution yet, submit one
+            // TODO/FIXME
+            // check if there is really no solution yet
             if (await this.submitSolution(block.hash)) {
               this.log(`submitted solution for ${block.number}`);
             }

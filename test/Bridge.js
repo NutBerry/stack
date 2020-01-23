@@ -446,8 +446,12 @@ describe('Bridge/RPC', async function () {
       await waitForValueChange(
         exitBalance,
         async function () {
+          try {
+            await provider.send('debug_forwardChain', []);
+          } catch (e) {
+            // this can return an error, ignore it
+          }
           await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
-          await provider.send('debug_forwardChain', []);
 
           return await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
         }
@@ -456,7 +460,7 @@ describe('Bridge/RPC', async function () {
 
     it('exit balance', async () => {
       const exitBalance = await bridge.getExitValue(erc20Root.address, erc20Root.signer.address);
-      assert.equal(exitBalance, '1');
+      assert.equal(exitBalance.toString(), '1');
     });
 
     it('lock', async () => {
