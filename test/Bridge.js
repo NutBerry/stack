@@ -656,6 +656,61 @@ describe('Bridge/RPC', async function () {
         )
       ).wait();
     });
+  });
+
+  describe('Invalid Block, solution & dispute', async () => {
+    const raw = '0123456789abcdef';
+    let solution;
+    let solutionHash;
+    let blockHash;
+
+    before(async () => {
+      solution =
+        '0x0000000000000000000000000000000000000000000000000000000000000001' +
+        '00000000000000000000000000000000000000000000000000000000000000ff';
+      solutionHash = ethers.utils.keccak256(solution);
+
+      const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');
+      blockHash = ethers.utils.keccak256('0x' + blockNonce + raw);
+    });
+
+    it('submitBlock should not throw', async () => {
+      const tx = await (
+        await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0x25ceb4b2' + raw,
+            value: await bridge.BOND_AMOUNT(),
+          }
+        )
+      ).wait();
+    });
+
+    it('submitSolution', async () => {
+      const tx = await (
+        await bridge.submitSolution(blockHash, solutionHash)
+      ).wait();
+    });
+
+    it('finalizeSolution - should throw', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+
+      const canFinalize = await bridge.canFinalizeBlock(blockHash);
+      assert.ok(canFinalize, 'canFinalizeBlock');
+
+      await assertRevert(bridge.finalizeSolution(blockHash, solution, { gasLimit: 6000000 }));
+    });
+
+    it('dispute', async () => {
+      const tx = await (
+        await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xf240f7c3' + raw,
+          }
+        )
+      ).wait();
+    });
 
     it('resume event processing', async () => {
       nodes.forEach(
