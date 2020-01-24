@@ -78,7 +78,10 @@ module.exports = class Bridge {
   }
 
   async init () {
-    this.bondAmount = await this.contract.BOND_AMOUNT();
+    this.VERSION = await this.contract.VERSION();
+    this.MAX_BLOCK_SIZE = await this.contract.MAX_BLOCK_SIZE();
+    this.INSPECTION_PERIOD = await this.contract.INSPECTION_PERIOD();
+    this.BOND_AMOUNT = await this.contract.BOND_AMOUNT();
 
     const rootProviderVersion = await this.rootProvider.send('web3_clientVersion', []);
     this.log(
@@ -87,8 +90,10 @@ module.exports = class Bridge {
         rootNetwork: await this.rootProvider.getNetwork(),
         rootProviderVersion,
         bridge: this.contract.address,
-        bridgeVersion: await this.contract.VERSION(),
-        bondAmount: this.bondAmount.toString(),
+        bridgeVersion: this.VERSION,
+        MAX_BLOCK_SIZE: this.MAX_BLOCK_SIZE,
+        INSPECTION_PERIOD: this.INSPECTION_PERIOD,
+        BOND_AMOUNT: this.BOND_AMOUNT.toString(),
         wallet: this.signer.address,
         debugMode: this.debugMode,
         badNodeMode: this.badNodeMode,
@@ -146,7 +151,7 @@ module.exports = class Bridge {
     {
       const currentBlock = await this.contract.currentBlock();
       // fetch the latest block excluding `currentBlock`
-      const block = await this.getBlockByNumber(currentBlock.add(1).toNumber());
+      const block = await this.getBlockByNumber(BigInt(currentBlock.add(1).toString()));
 
       // we found the next pending block
       if (block && block.hash) {
@@ -288,7 +293,7 @@ module.exports = class Bridge {
   async isCurrentBlock (blockNumber) {
     const currentBlock = await this.contract.currentBlock();
 
-    if (currentBlock.add(1).eq(blockNumber)) {
+    if (currentBlock.add(1).eq(blockNumber.toString())) {
       return true;
     }
 
@@ -307,7 +312,7 @@ module.exports = class Bridge {
       return;
     }
 
-    const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
+    const mySolution = await block.computeSolution(this, this.badNodeMode);
 
     if (mySolution.hash === solutionHash) {
       this.log('Block solution looks fine');
@@ -395,7 +400,7 @@ module.exports = class Bridge {
       return false;
     }
 
-    const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
+    const mySolution = await block.computeSolution(this, this.badNodeMode);
 
     let tx = await this.contract.submitSolution(
       blockHash, mySolution.hash
@@ -419,7 +424,7 @@ module.exports = class Bridge {
       return true;
     }
 
-    const mySolution = await (this.badNodeMode ? block.computeWrongSolution(this) : block.computeSolution(this));
+    const mySolution = await block.computeSolution(this, this.badNodeMode);
 
     this.log('Bridge.finalizeSolution', mySolution);
     let tx = await this.contract.finalizeSolution(blockHash, mySolution.buffer);
@@ -449,7 +454,7 @@ module.exports = class Bridge {
       gasLimit: 8000000,
     };
     const cBlock = await this.contract.currentBlock();
-    if (cBlock.gte(block.number)) {
+    if (cBlock.gte(block.number.toString())) {
       this.log(TAG, 'ALREADY COMPLETED');
       return;
     }
@@ -476,7 +481,7 @@ module.exports = class Bridge {
       }
     } catch (e) {
       const cBlock = await this.contract.currentBlock();
-      if (cBlock.gte(block.number)) {
+      if (cBlock.gte(block.number.toString())) {
         this.log(TAG, 'ALREADY COMPLETED');
         return;
       }

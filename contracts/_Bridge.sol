@@ -5,12 +5,12 @@ import './LEVM.sol';
 // TODO: investigate possible re-entrancy attacks
 contract _Bridge is LEVM {
   uint16 public constant VERSION = 2;
-  uint256 public constant MAX_BLOCK_SIZE = 8096;
-  uint256 public constant MAX_SOLUTION_SIZE = 2048;
+  uint16 public constant MAX_BLOCK_SIZE = 8096;
+  uint16 public constant MAX_SOLUTION_SIZE = 2048;
+  // >~14 minutes | in Blocks
+  uint16 public constant INSPECTION_PERIOD = 60;
   // 1 ether
   uint256 public constant BOND_AMOUNT = 1000000000000000000;
-  // >~14 minutes | in Blocks
-  uint256 public constant INSPECTION_PERIOD = 60;
   // TODO
   // - use state-roots for per-account basis?
   //   mapping(address => bytes32) stateRoots;

@@ -419,8 +419,7 @@ module.exports = class Inventory {
     }
   }
 
-  // `_to` = contract address
-  handleCall (msgSender, _to, target, data) {
+  handleCall (msgSender, target, data) {
     let offset = 0;
     let inventory = this;
     const funcSig = data.substring(offset, offset += 8);
@@ -512,7 +511,7 @@ module.exports = class Inventory {
       if (funcSig === FUNC_SIG_GET_APPROVED) {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
-        return [inventory.getApproved(_to, target, tokenId), []];
+        return [inventory.getApproved(msgSender, target, tokenId), []];
       }
 
       if (funcSig === FUNC_SIG_READ_DATA) {

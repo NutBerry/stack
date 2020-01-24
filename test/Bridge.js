@@ -217,6 +217,22 @@ describe('Bridge/RPC', async function () {
       tx = await tx.wait();
     });
 
+    it('TestContract.partialFail', async () => {
+      const balanceBefore = await erc20.balanceOf(walletAlice.address);
+
+      let tx = await erc20.approve(testContract.address, '0xff');
+      tx = await tx.wait();
+      assert.equal(tx.logs.length, 1, 'logs emitted');
+
+      tx = await testContract.partialFail(erc20.address, walletAlice.address, testContract.address);
+      tx = await tx.wait();
+
+      const balanceAfter = await erc20.balanceOf(walletAlice.address);
+
+      assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber(), 'balance of Alice');
+      assert.equal(tx.logs.length, 0, 'logs emitted');
+    });
+
     it('unknown method', async () => {
       let err;
 
@@ -552,7 +568,7 @@ describe('Bridge/RPC', async function () {
         rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
-            data: '0x25ceb4b2' + ''.padStart((blockSize.toNumber() * 2) + 2, 'ac'),
+            data: '0x25ceb4b2' + ''.padStart((blockSize * 2) + 2, 'ac'),
             value: await bridge.BOND_AMOUNT(),
             gasLimit: 6000000,
           }
@@ -613,7 +629,7 @@ describe('Bridge/RPC', async function () {
 
     before(async () => {
       const maxSize = await bridge.MAX_SOLUTION_SIZE();
-      solution = Buffer.alloc(maxSize.toNumber() + 1).fill(0xff);
+      solution = Buffer.alloc(maxSize + 1).fill(0xff);
       solutionHash = ethers.utils.keccak256(solution);
 
       const blockNonce = (await bridge.currentBlock()).add(1).toHexString().replace('0x', '').padStart(64, '0');

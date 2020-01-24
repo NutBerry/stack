@@ -17,7 +17,7 @@ module.exports = class Block {
     // the blockHash - only available if this block was submitted to the Bridge.
     this.hash = '';
     // the blockNumber
-    this.number = prevBlock ? prevBlock.number + 1 : 1;
+    this.number = prevBlock ? prevBlock.number + BIG_ONE : BIG_ONE;
     // the token inventory
     this.inventory = prevBlock ? prevBlock.inventory.clone() : new Inventory();
     // address > nonce mapping
@@ -45,7 +45,7 @@ module.exports = class Block {
     this.hash = null;
     this.prevBlock = prevBlock;
     this.inventory = prevBlock.inventory.clone();
-    this.number = prevBlock.number + 1;
+    this.number = prevBlock.number + BIG_ONE;
 
     this.log(`Refactor:Started ${this.transactionHashes.length} transactions`);
 
@@ -89,6 +89,8 @@ module.exports = class Block {
 
       this.log(`${tx.from}:${tx.nonce}:${tx.hash}`);
 
+      // TODO
+      // check modified storage keys, take MAX_SOLUTION_SIZE into account
       if (errno !== 0) {
         this.log('invalid tx', tx.hash);
       }
@@ -175,9 +177,9 @@ module.exports = class Block {
     ) {
       const code = Utils.toUint8Array(await bridge.rootProvider.getCode(tx.to));
       const data = Utils.toUint8Array(tx.data);
-      const caller = Buffer.from(tx.to.replace('0x', ''), 'hex');
       const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
       const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
+      const caller = origin;
       const runtime = new NutBerryRuntime();
       const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
 
@@ -198,11 +200,9 @@ module.exports = class Block {
 
     // not a contract
     const msgSender = tx.from.toLowerCase();
-    // `self` is 0
-    const to = '0x0000000000000000000000000000000000000000';
     const target = tx.to.toLowerCase();
     const data = tx.data.replace('0x', '');
-    const [ret, logs] = customEnvironment.handleCall(msgSender, to, target, data) || '0x';
+    const [ret, logs] = customEnvironment.handleCall(msgSender, target, data) || '0x';
     const errno = ret === '0x' ? 7 : 0;
 
     if (errno === 0 && !dry) {
@@ -247,10 +247,12 @@ module.exports = class Block {
   }
 
   async submitBlock (bridge) {
-    // TODO: check for MAX_PAYLOAD_SIZE
     const hashes = this.transactionHashes;
     const transactions = [];
 
+    // TODO
+    // this also has to take MAX_SOLUTION_SIZE into account
+    let payloadLength = 0;
     for (let i = 0; i < hashes.length; i++) {
       const hash = hashes[i];
       let tx = this.transactions[hash];
@@ -259,15 +261,22 @@ module.exports = class Block {
 
       this.log('Preparing ' + tx.from + ':' + tx.nonce + ':' + tx.hash);
 
-      const encoded = Utils.encodeTx(tx);
-      transactions.push(encoded.replace('0x', ''));
+      const encoded = Utils.encodeTx(tx).replace('0x', '');
+      const byteLength = encoded.length / 2;
+
+      if (payloadLength + byteLength > bridge.MAX_BLOCK_SIZE) {
+        this.log('reached MAX_BLOCK_SIZE');
+        break;
+      }
+
+      transactions.push(encoded);
     }
 
     const rawData = transactions.join('');
     const txData = {
       to: bridge.contract.address,
       data: FUNC_SIG_SUBMIT_BLOCK + rawData,
-      value: bridge.bondAmount,
+      value: bridge.BOND_AMOUNT,
     };
 
     // post data
@@ -292,7 +301,6 @@ module.exports = class Block {
 
   /// @dev Computes the solution for this Block.
   async computeSolution (bridge, doItWrong) {
-    // TODO: check for MAX_SOLUTION_SIZE
     const storageKeys = this.inventory.storageKeys;
     const keys = Object.keys(storageKeys);
 
@@ -314,6 +322,10 @@ module.exports = class Block {
       buf[63] = 1;
     }
 
+    if (buf.length > bridge.MAX_SOLUTION_SIZE) {
+      throw new Error('Reached MAX_SOLUTION_SIZE');
+    }
+
     const solution = {
       buffer: buf,
       hash: ethers.utils.solidityKeccak256(['bytes'], [buf]),
@@ -324,10 +336,5 @@ module.exports = class Block {
     this.log('==================================================================================');
 
     return solution;
-  }
-
-  // @dev For testing
-  async computeWrongSolution (bridge) {
-    return this.computeSolution(bridge, true);
   }
 };

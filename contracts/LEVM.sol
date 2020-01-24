@@ -389,15 +389,13 @@ contract LEVM is Inventory {
         // FROM
         sstore(0xcc, from)
       }
-      bool success = _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
+      // state is reverted if the contract reverts
+      _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
       assembly {
         // reset slots
         sstore(0xaa, 0)
         sstore(0xbb, 0)
         sstore(0xcc, 0)
-      }
-      if (!success) {
-        // TODO: revert inventory state
       }
     }
 
