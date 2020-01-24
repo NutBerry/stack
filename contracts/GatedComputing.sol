@@ -134,89 +134,35 @@ contract GatedComputing {
           // STATICCALL
           case 0xfa {
             // SWAP1
-            mstore8(ptr, 0x90)
-            ptr := add(ptr, 1)
             // DUP1
-            mstore8(ptr, 0x80)
-            ptr := add(ptr, 1)
-            // PUSH1 10
-            mstore8(ptr, 0x60)
-            ptr := add(ptr, 1)
-            mstore8(ptr, 10)
-            ptr := add(ptr, 1)
-            // LT 10 <ADDR>
-            mstore8(ptr, 0x10)
-            ptr := add(ptr, 1)
-            // PUSH1 <offset>
-            mstore8(ptr, 0x60)
-            ptr := add(ptr, 1)
-            // <offset>
-            mstore8(ptr, 10)
-            ptr := add(ptr, 1)
-            // PC
-            mstore8(ptr, 0x58)
-            ptr := add(ptr, 1)
-            // ADD
-            mstore8(ptr, 0x01)
-            ptr := add(ptr, 1)
-            // JUMPI
-            mstore8(ptr, 0x57)
-            ptr := add(ptr, 1)
-            // SWAP1 - reverse first operation
-            mstore8(ptr, 0x90)
-            ptr := add(ptr, 1)
-            // STATICCALL
-            mstore8(ptr, 0xfa)
-            ptr := add(ptr, 1)
-            // PUSH 1
-            mstore8(ptr, 0x60)
-            ptr := add(ptr, 1)
-            // <offset>
-            mstore8(ptr, 13)
-            ptr := add(ptr, 1)
-            // PC
-            mstore8(ptr, 0x58)
-            ptr := add(ptr, 1)
-            // ADD
-            mstore8(ptr, 0x01)
-            ptr := add(ptr, 1)
-            // JUMP
-            mstore8(ptr, 0x56)
-            ptr := add(ptr, 1)
-
-            // JUMPDEST
-            mstore8(ptr, 0x5b)
-            ptr := add(ptr, 1)
-            // SWAP1 - reverse first operation
-            mstore8(ptr, 0x90)
-            ptr := add(ptr, 1)
-            // POP - gas
-            mstore8(ptr, 0x50)
-            ptr := add(ptr, 1)
             // PUSH1
-            mstore8(ptr, 0x60)
-            ptr := add(ptr, 1)
-            // 0xbb
-            mstore8(ptr, 0xbb)
-            ptr := add(ptr, 1)
-            // SSTORE - (0xbb, a)
-            mstore8(ptr, 0x55)
-            ptr := add(ptr, 1)
-            // 0 - CALLVALUE
-            mstore8(ptr, 0x34)
-            ptr := add(ptr, 1)
-            // CALLER
-            mstore8(ptr, 0x33)
-            ptr := add(ptr, 1)
-            // GAS
-            mstore8(ptr, 0x5a)
-            ptr := add(ptr, 1)
-            // CALLCODE
-            mstore8(ptr, 0xf2)
-            ptr := add(ptr, 1)
+            // 10 - 0a
+            // LT 10 <ADDR>
+            // PUSH1 <offset>
+            // 10 - 0a
+            // PC
+            // ADD
+            // JUMPI
+            // SWAP1 - reverse first operation
+            // STATICCALL
+            // PUSH 1
+            // 13 - 0d <offset>
+            // PC
+            // ADD
+            // JUMP
             // JUMPDEST
-            mstore8(ptr, 0x5b)
-            ptr := add(ptr, 1)
+            // SWAP1 - reverse first operation
+            // POP - gas
+            // PUSH1
+            // 0xbb
+            // SSTORE - (0xbb, a)
+            // 0 - CALLVALUE
+            // CALLER
+            // GAS
+            // CALLCODE
+            // JUMPDEST
+            mstore(ptr, 0x9080600a10600a58015790fa600d5801565b905060bb5534335af25b00000000)
+            ptr := add(ptr, 28)
           }
           // CODESIZE
           case 0x38 {
