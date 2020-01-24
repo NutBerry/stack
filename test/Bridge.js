@@ -9,7 +9,7 @@ const ERC20_ABI = require('./../build/contracts/ERC20.json').abi;
 const ERC721_ABI = require('./../build/contracts/ERC721.json').abi;
 const ERC1948_ABI = require('./../build/contracts/ERC1948.json').abi;
 const ERC1949_ABI = require('./../build/contracts/ERC1949.json').abi;
-const BRIDGE_ABI = require('./../build/contracts/Bridge.json').abi;
+const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 const BRIDGE = require('./../build/contracts/Bridge.json');
 
 const ERC20 = require('./../build/contracts/ERC20.json');
