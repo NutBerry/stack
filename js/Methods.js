@@ -56,8 +56,9 @@ module.exports = class Methods {
   }
 
   static async 'eth_getBlockByNumber' (obj, bridge) {
+    const num = BigInt(obj.params[0]);
     // TODO
-    const num = parseInt(obj.params[0], 16);
+    const withTxData = obj.params[1] ? true : false;
     const block = await bridge.getBlockByNumber(num, true);
 
     if (!block) {

@@ -50,9 +50,8 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
 
   async interceptCall (runState, target, data) {
     const inventory = runState.customEnvironment;
-    const msgSender = `0x${runState.caller.toString('hex')}`;
-    const to = '0x' + runState.address.toString('hex');
-    const [ret, logs] = inventory.handleCall(msgSender, to, target, data);
+    const msgSender = `0x${runState.address.toString('hex')}`;
+    const [ret, logs] = inventory.handleCall(msgSender, target, data);
 
     runState.logs = runState.logs.concat(logs);
     return ret;

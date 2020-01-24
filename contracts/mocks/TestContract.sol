@@ -71,4 +71,17 @@ contract TestContract {
     bytes memory data = new bytes(128);
     return ripemd160(data);
   }
+
+  function partialFail (address tokenAddr, address alice, address bob) public {
+    ERC20 token = ERC20(tokenAddr);
+    token.transferFrom(alice, bob, 1);
+    uint256 balance = token.balanceOf(bob);
+    emit TestEvent(bob, balance);
+    emit TestEvent2(bob, balance);
+    emit TestEvent3(bob, balance, true);
+    emit BlockBeacon();
+    if (msg.sender == alice) {
+      revert();
+    }
+  }
 }

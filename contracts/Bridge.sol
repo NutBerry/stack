@@ -19,9 +19,14 @@ contract Bridge is _Bridge {
     uint256 pending = highestPendingBlock + 1;
     bytes32 blockHash;
     assembly {
+      // our deposit block
+      // 32 bytes nonce
       mstore(0x80, pending)
+      // 20 byte caller
       mstore(0xa0, shl(96, caller()))
+      // 20 byte token
       mstore(0xb4, shl(96, token))
+      // 32 byte amount or token id
       mstore(0xc8, amountOrId)
       blockHash := keccak256(0x80, 104)
 
@@ -113,10 +118,9 @@ contract Bridge is _Bridge {
     }
 
     _checkCaller();
-    // validate the data
+    // validate the block-data
     bytes32 blockHash = _blockHash(currentBlock + 1);
 
-    // TODO: challenge needs to be chunkable once we support smart contracts
     uint256 offsetStart = disputeOffset;
     if (offsetStart == 0) {
       // function sig
@@ -134,7 +138,7 @@ contract Bridge is _Bridge {
     disputeOffset = nextOffset;
 
     // TODO: payout part of the bond!
-    // gas() - gasNow
+    // gasNow - gas()
   }
 
   /// @dev Returns true if `blockHash` can be finalized, else false.
@@ -145,7 +149,7 @@ contract Bridge is _Bridge {
       return false;
     }
 
-    // if there is no active dispute
+    // if there is no active dispute, then yes
     return disputeOffset == 0;
   }
 

@@ -77,7 +77,7 @@ module.exports = [
     'outputs': [
       {
         'name': '',
-        'type': 'uint256',
+        'type': 'uint16',
       },
     ],
     'payable': false,
@@ -91,7 +91,7 @@ module.exports = [
     'outputs': [
       {
         'name': '',
-        'type': 'uint256',
+        'type': 'uint16',
       },
     ],
     'payable': false,
@@ -202,7 +202,7 @@ module.exports = [
     'outputs': [
       {
         'name': '',
-        'type': 'uint256',
+        'type': 'uint16',
       },
     ],
     'payable': false,
