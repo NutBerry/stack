@@ -65,6 +65,20 @@ const compilerInput = {
     optimizer: {
       enabled: true,
       runs: 2,
+      /*
+      details: {
+        peephole: true,
+        jumpdestRemover: true,
+        orderLiterals: false,
+        deduplicate: false,
+        cse: true,
+        constantOptimizer: false,
+        yul: true,
+        yulDetails: {
+          stackAllocation: true,
+        },
+      },
+      */
     },
     outputSelection: {
       '*': {
