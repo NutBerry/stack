@@ -67,6 +67,7 @@ describe('Bridge/RPC', async function () {
   let walletBob;
   let walletCharlie;
   let testContract;
+  let erc20TransferCount = 0;
 
   function sleep (ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,8 +88,13 @@ describe('Bridge/RPC', async function () {
   }
 
   async function erc20Transfer (...args) {
-    const tx = await erc20.transfer(...args);
+    let tx = await erc20.transfer(...args);
     transactions.push(tx.hash);
+    erc20TransferCount++;
+
+    tx = await tx.wait();
+    assert.equal(tx.logs.length, 1, 'logs emitted');
+
     return tx;
   }
 
@@ -287,7 +293,6 @@ describe('Bridge/RPC', async function () {
     it('Alice: ERC20 transfer', async () => {
       const balanceBefore = await erc20.balanceOf(walletBob.address);
       let tx = await erc20Transfer(walletBob.address, '0x01');
-      tx = await tx.wait();
 
       assert.equal(tx.from, walletAlice.address);
       const balanceAfter = await erc20.balanceOf(walletBob.address);
@@ -310,7 +315,6 @@ describe('Bridge/RPC', async function () {
     it('Alice: ERC20 transfer exit', async () => {
       let balance = await erc20.balanceOf(walletAlice.address);
       let tx = await erc20Transfer(ADDRESS_ZERO, balance);
-      tx = await tx.wait();
 
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
       assert.equal(balanceAfter.toNumber(), 0, 'balance of Alice');
@@ -453,7 +457,6 @@ describe('Bridge/RPC', async function () {
 
     it('exit transfer', async () => {
       let tx = await erc20Transfer(ADDRESS_ZERO, 1);
-      tx = await tx.wait();
     });
 
     it('finalize exit', async () => {
@@ -909,6 +912,26 @@ describe('Bridge/RPC', async function () {
         req.write('POST / HTTP/1.0\r\ncontent-length: 1\r\n\r\n');
         req.end(Buffer.alloc((8 << 20) + 1));
       });
+    });
+
+    it('eth_getLogs - Transfer', async () => {
+      const logCount = await new Promise(async (resolve) => {
+        const topic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        const filter = erc20.filters.Transfer(erc20.signer.address);
+        let count = 0;
+
+        setTimeout(() => {
+          resolve(count);
+        }, 5000);
+
+        erc20.on(filter, async (from, to, value, evt) => {
+          assert.equal(evt.topics[0], topic, 'topic must be correct');
+          count++;
+        });
+        erc20.provider.resetEventsBlock(1);
+      });
+
+      assert.equal(logCount, erc20TransferCount, 'logCount should match erc20TransferCount');
     });
   });
 });

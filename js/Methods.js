@@ -193,11 +193,74 @@ module.exports = class Methods {
 
   static async 'eth_getLogs' (obj, bridge) {
     // TODO
-    // fromBlock
-    // toBlock
-    // address
-    // topics
+    // Support
+    // - blockhash filter
+    // - nested topic queries
+    // - pending, earliest ..
+    // - correct log indices
     const eventFilter = obj.params[0];
+    const filterAddress = eventFilter.address ? eventFilter.address.toLowerCase() : null;
+    const filterTopics = eventFilter.topics || [];
+    const res = [];
+    const end = BigInt(eventFilter.toBlock || bridge.currentBlock.number);
+    let start = BigInt(eventFilter.fromBlock || bridge.currentBlock.number);
+
+    for (; start <= end; start++) {
+      const block = await bridge.getBlockByNumber(start, false);
+
+      if (!block) {
+        break;
+      }
+
+      const blockHash = block.hash || ZERO_HASH;
+      const blockNumber = `0x${block.number.toString(16)}`;
+      const txsLength = block.transactionHashes.length;
+
+      for (let txIndex = 0; txIndex < txsLength; txIndex++) {
+        const txHash = block.transactionHashes[txIndex];
+        const tx = block.transactions[txHash];
+
+        if (filterAddress && tx.to !== filterAddress) {
+          continue;
+        }
+
+        const transactionIndex = `0x${txIndex.toString(16)}`;
+        const logsLength = tx.logs.length;
+        for (let logIndex = 0; logIndex < logsLength; logIndex++) {
+          const log = tx.logs[logIndex];
+          const filterTopicsLength = filterTopics.length;
+          let skip = false;
+
+          for (let t = 0; t < filterTopicsLength; t++) {
+            const q = filterTopics[t];
+            if (!q || log.topics[t] !== q) {
+              skip = true;
+              break;
+            }
+          }
+          if (skip) {
+            continue;
+          }
+
+          const idx = `0x${logIndex.toString(16)}`;
+          const obj = {
+            transactionLogIndex: idx,
+            transactionIndex,
+            blockNumber,
+            transactionHash: txHash,
+            address: log.address,
+            topics: log.topics,
+            data: log.data,
+            logIndex: idx,
+            blockHash,
+          };
+
+          res.push(obj);
+        }
+      }
+    }
+
+    return res;
   }
 
   // TODO

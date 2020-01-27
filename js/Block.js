@@ -202,7 +202,7 @@ module.exports = class Block {
     const msgSender = tx.from.toLowerCase();
     const target = tx.to.toLowerCase();
     const data = tx.data.replace('0x', '');
-    const [ret, logs] = customEnvironment.handleCall(msgSender, target, data) || '0x';
+    const [ret, logs] = customEnvironment.handleCall(msgSender, target, data);
     const errno = ret === '0x' ? 7 : 0;
 
     if (errno === 0 && !dry) {
