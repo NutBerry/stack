@@ -11,11 +11,6 @@ contract LEVM is Inventory {
   bytes4 constant internal FUNC_SIG_ALLOWANCE = hex'dd62ed3e';
   bytes4 constant internal FUNC_SIG_TRANSFER = hex'a9059cbb';
   bytes4 constant internal FUNC_SIG_TRANSFER_FROM = hex'23b872dd';
-  // bytes4 constant internal FUNC_SIG_OWNER_OF = hex'6352211e';
-  // bytes4 constant internal FUNC_SIG_GET_APPROVED = hex'081812fc';
-  // bytes4 constant internal FUNC_SIG_READ_DATA = hex'37ebbc03';
-  // bytes4 constant internal FUNC_SIG_WRITE_DATA = hex'a983d43f';
-  // bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
 
   /// @dev Internal helper for parsing encoded transactions from calldata.
   function _parseTx (
@@ -264,9 +259,6 @@ contract LEVM is Inventory {
     address target;
     assembly {
       target := sload(0xbb)
-      if iszero(target) {
-        revert(0, 0)
-      }
     }
     return _balanceOf(target, owner);
   }

@@ -2,8 +2,6 @@ pragma solidity ^0.5.2;
 
 import './ERC20.sol';
 import './ERC721.sol';
-import './ERC1948.sol';
-import './ERC1949.sol';
 
 
 contract TestContract {
@@ -50,17 +48,6 @@ contract TestContract {
     require(owner == alice);
     require(token.getApproved(tokenId) == address(this));
     token.transferFrom(alice, bob, tokenId);
-  }
-
-  function testERC1948 (address tokenAddr, address /*alice*/, address /*bob*/, uint256 tokenId) public {
-    ERC1948 token = ERC1948(tokenAddr);
-    uint256 data = uint256(token.readData(tokenId)) + 1;
-    token.writeData(tokenId, bytes32(data));
-  }
-
-  function testERC1949 (address tokenAddr, address /*alice*/, address bob, uint256 tokenId) public {
-    ERC1949 token = ERC1949(tokenAddr);
-    token.breed(tokenId, bob, bytes32(uint256(0x0a)));
   }
 
   function ping () public view returns (address) {

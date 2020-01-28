@@ -14,11 +14,9 @@ const FUNC_SIG_APPROVE = '095ea7b3';
 const FUNC_SIG_ALLOWANCE = 'dd62ed3e';
 const FUNC_SIG_TRANSFER = 'a9059cbb';
 const FUNC_SIG_TRANSFER_FROM = '23b872dd';
+// For testing; at the moment
 const FUNC_SIG_OWNER_OF = '6352211e';
 const FUNC_SIG_GET_APPROVED = '081812fc';
-const FUNC_SIG_READ_DATA = '37ebbc03';
-const FUNC_SIG_WRITE_DATA = 'a983d43f';
-const FUNC_SIG_BREED = '451da9f9';
 
 /// @notice Supports the following functions:
 ///
@@ -30,13 +28,6 @@ const FUNC_SIG_BREED = '451da9f9';
 /// ERC721
 ///   - getApproved (tokenId)
 ///   - ownerOf (tokenId)
-///
-/// ERC1948
-///   - readData (tokenId)
-///   - writeData (tokenId, newTokenData)
-///
-/// ERC1949(not done):
-///   - breed (tokenId, to, newTokenData)
 ///
 /// ERC20, ERC721, ERC1948, ERC1949
 ///   - transferFrom (from, to, tokenId)
@@ -141,8 +132,6 @@ module.exports = class Inventory {
       data: e.data || UINT_ZERO,
       isERC20: e.isERC20 || false,
       isERC721: e.isERC721 || false,
-      isERC1948: e.isERC1948 || false,
-      isERC1949: e.isERC1949 || false,
     };
 
     let bag = this.tokenBag[t.address];
@@ -363,60 +352,6 @@ module.exports = class Inventory {
     }
   }
 
-  /// @notice ERC1948, ERC1949 only.
-  /// @dev Assumes `target` exist in the token bag.
-  readData (target, tokenId) {
-    const e = this.getERC721(target, tokenId);
-
-    if (e && (e.isERC1948 || e.isERC1949)) {
-      return e.data;
-    }
-  }
-
-  /// @notice ERC1948, ERC1949 only.
-  /// @dev Assumes `target` exist in the token bag.
-  writeData (msgSender, target, tokenId, newTokenData) {
-    const e = this.getERC721(target, tokenId);
-
-    if (e && (e.isERC1948 || e.isERC1949) && this._isApprovedOrOwner(msgSender, e)) {
-      e.data = newTokenData;
-      return UINT_ONE;
-    }
-  }
-
-  /// @notice ERC1949 only.
-  /// @dev Assumes `target` exist in the token bag.
-  breed (msgSender, target, tokenId, to, newTokenData) {
-    const e = this.getERC721(target, tokenId);
-
-    // TODO "sender not queen owner nor approved"
-    // TODO: How do we signal that the token is a Queen?...
-    if (e && e.isERC1949 && this._isApprovedOrOwner(msgSender, e)) {
-      // uint256 counter = uint256(readData(_queenId));
-      const counter = BigInt(e.data);
-      // require(counter > 0, "queenId too low");
-      // require(counter < 4294967296, "queenId too high");  // 2 ^ 32 = 4294967296
-      if (counter < BIGINT_ZERO || counter > BIGINT_POW_2_32) {
-        return;
-      }
-      // writeData(_queenId, bytes32(counter + 1));
-      e.data = `0x${(counter + BIGINT_ONE).toString(16).padStart(64, '0')}`;
-      // uint256 newId = uint256(keccak256(abi.encodePacked(_queenId, counter)));
-      const newId = ethers.utils.solidityKeccak256(['uint256', 'bytes32'], [target, e.data]);
-      // mint
-      const newEntry = {
-        address: target,
-        owner: to,
-        value: newId,
-        data: newTokenData,
-        isERC1949: true,
-      };
-      this.addToken(newEntry);
-      // returns nothing
-      return '';
-    }
-  }
-
   handleCall (msgSender, target, data) {
     let offset = 0;
     let inventory = this;
@@ -510,27 +445,6 @@ module.exports = class Inventory {
         const tokenId = '0x' + data.substring(offset, offset += 64);
 
         return [inventory.getApproved(msgSender, target, tokenId), []];
-      }
-
-      if (funcSig === FUNC_SIG_READ_DATA) {
-        const tokenId = '0x' + data.substring(offset, offset += 64);
-
-        return [inventory.readData(target, tokenId), []];
-      }
-
-      if (funcSig === FUNC_SIG_WRITE_DATA) {
-        const tokenId = '0x' + data.substring(offset, offset += 64);
-        const newTokenData = '0x' + data.substring(offset, offset += 64);
-
-        return [inventory.writeData(msgSender, target, tokenId, newTokenData), []];
-      }
-
-      if (funcSig === FUNC_SIG_BREED) {
-        const tokenId = '0x' + data.substring(offset, offset += 64);
-        const to = '0x' + data.substring(offset += 24, offset += 40);
-        const newTokenData = '0x' + data.substring(offset, offset += 64);
-
-        return [inventory.breed(msgSender, target, tokenId, to, newTokenData), []];
       }
     }
   }

@@ -159,23 +159,13 @@ module.exports = class Block {
     const FUNC_SIG_ALLOWANCE = '0xdd62ed3e';
     const FUNC_SIG_TRANSFER = '0xa9059cbb';
     const FUNC_SIG_TRANSFER_FROM = '0x23b872dd';
-    const FUNC_SIG_OWNER_OF = '0x6352211e';
-    const FUNC_SIG_GET_APPROVED = '0x081812fc';
-    const FUNC_SIG_READ_DATA = '0x37ebbc03';
-    const FUNC_SIG_WRITE_DATA = '0xa983d43f';
-    const FUNC_SIG_BREED = '0x451da9f9';
 
     if (
       !tx.data.startsWith(FUNC_SIG_BALANCE_OF) &&
       !tx.data.startsWith(FUNC_SIG_APPROVE) &&
       !tx.data.startsWith(FUNC_SIG_ALLOWANCE) &&
       !tx.data.startsWith(FUNC_SIG_TRANSFER) &&
-      !tx.data.startsWith(FUNC_SIG_TRANSFER_FROM) &&
-      !tx.data.startsWith(FUNC_SIG_OWNER_OF) &&
-      !tx.data.startsWith(FUNC_SIG_GET_APPROVED) &&
-      !tx.data.startsWith(FUNC_SIG_READ_DATA) &&
-      !tx.data.startsWith(FUNC_SIG_WRITE_DATA) &&
-      !tx.data.startsWith(FUNC_SIG_BREED)
+      !tx.data.startsWith(FUNC_SIG_TRANSFER_FROM)
     ) {
       const code = Utils.toUint8Array(await bridge.rootProvider.getCode(tx.to));
       const data = Utils.toUint8Array(tx.data);

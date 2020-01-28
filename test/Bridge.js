@@ -7,15 +7,11 @@ const assert = require('assert');
 
 const ERC20_ABI = require('./../build/contracts/ERC20.json').abi;
 const ERC721_ABI = require('./../build/contracts/ERC721.json').abi;
-const ERC1948_ABI = require('./../build/contracts/ERC1948.json').abi;
-const ERC1949_ABI = require('./../build/contracts/ERC1949.json').abi;
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 const BRIDGE = require('./../build/contracts/Bridge.json');
 
 const ERC20 = require('./../build/contracts/ERC20.json');
 const ERC721 = require('./../build/contracts/ERC721.json');
-const ERC1948 = require('./../build/contracts/ERC1948.json');
-const ERC1949 = require('./../build/contracts/ERC1949.json');
 const TestContract = require('./../build/contracts/TestContract.json');
 
 const NODE_ADDR = '0xDf08F82De32B8d460adbE8D72043E3a7e25A3B39';
@@ -55,10 +51,6 @@ describe('Bridge/RPC', async function () {
   let erc20Root;
   let erc721;
   let erc721Root;
-  let erc1948;
-  let erc1948Root;
-  let erc1949;
-  let erc1949Root;
   let rootProvider = new ethers.providers.JsonRpcProvider(`http://localhost:${process.env.RPC_PORT}`);
   let provider;
   let nodes;
@@ -141,24 +133,6 @@ describe('Bridge/RPC', async function () {
     erc721 = new ethers.Contract(erc721Root.address, ERC721_ABI, walletAlice);
     let tx = await erc721Root.mint(walletAlice.address, ERC721_TOKEN_ID);
     await tx.wait();
-
-    _factory = new ethers.ContractFactory(
-      ERC1948.abi,
-      ERC1948.bytecode,
-      rootWalletAlice,
-    );
-    erc1948Root = await _factory.deploy();
-    await erc1948Root.deployTransaction.wait();
-    erc1948 = new ethers.Contract(erc1948Root.address, ERC1948_ABI, walletAlice);
-
-    _factory = new ethers.ContractFactory(
-      ERC1949.abi,
-      ERC1949.bytecode,
-      rootWalletAlice,
-    );
-    erc1949Root = await _factory.deploy('ERC1949 Token', 'ERC1949');
-    await erc1949Root.deployTransaction.wait();
-    erc1949 = new ethers.Contract(erc1949Root.address, ERC1949_ABI, walletAlice);
 
     _factory = new ethers.ContractFactory(
       TestContract.abi,
