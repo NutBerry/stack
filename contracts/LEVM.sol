@@ -6,22 +6,106 @@ contract LEVM is Inventory {
   // needs to be replaced with the deployed address
   address constant GATED_COMPUTING_ADDRESS = 0xabCDeF0123456789AbcdEf0123456789aBCDEF01;
 
-  bytes4 constant internal FUNC_SIG_BALANCE_OF = hex'70a08231';
-  bytes4 constant internal FUNC_SIG_APPROVE = hex'095ea7b3';
-  bytes4 constant internal FUNC_SIG_ALLOWANCE = hex'dd62ed3e';
-  bytes4 constant internal FUNC_SIG_TRANSFER = hex'a9059cbb';
-  bytes4 constant internal FUNC_SIG_TRANSFER_FROM = hex'23b872dd';
+  uint256 constant internal FUNC_SIG_BALANCE_OF = 0x70a08231;
+  uint256 constant internal FUNC_SIG_APPROVE = 0x095ea7b3;
+  uint256 constant internal FUNC_SIG_ALLOWANCE = 0xdd62ed3e;
+  uint256 constant internal FUNC_SIG_TRANSFER = 0xa9059cbb;
+  uint256 constant internal FUNC_SIG_TRANSFER_FROM = 0x23b872dd;
+  uint256 constant internal FUNC_SIG_OWNER_OF = 0x6352211e;
+  uint256 constant internal FUNC_SIG_GET_APPROVED = 0x081812fc;
+
+  // TODO
+  function _from () internal returns (address v) {
+    assembly {
+      v := sload(0xaa)
+    }
+  }
+
+  function _to () internal returns (address v) {
+    assembly {
+      v := sload(0xbb)
+    }
+  }
+
+  function _arg1 () internal returns (uint256 v) {
+    assembly {
+      v := calldataload(4)
+    }
+  }
+
+  function _arg2 () internal returns (uint256 v) {
+    assembly {
+      v := calldataload(36)
+    }
+  }
+
+  function _arg3 () internal returns (uint256 v) {
+    assembly {
+      v := calldataload(68)
+    }
+  }
+
+  function _returnValue (uint256 v) internal {
+    assembly {
+      mstore(0, v)
+      return(0, 32)
+    }
+  }
+
+  function _revertOnFailure (uint256 v) internal {
+    assembly {
+      mstore(0, v)
+      if iszero(v) {
+        revert(0, 32)
+      }
+      return(0, 32)
+    }
+  }
+
+  function () external {
+    uint256 functionSig;
+    assembly {
+      functionSig := shr(224, calldataload(0))
+    }
+
+    if (functionSig == 0xa08231) {
+      _returnValue(_balanceOf(_to(), address(_arg1())));
+    }
+
+    if (functionSig == 0x62ed3e) {
+      _returnValue(_allowance(_to(), address(_arg1()), address(_arg2())));
+    }
+
+    if (functionSig == 0x52211e) {
+      _returnValue(_getStorage(_hashERC721(_to(), _arg1())));
+    }
+
+    if (functionSig == 0x1812fc) {
+      _returnValue(_getStorage(_hashApproval(_to(), _arg1())));
+    }
+
+    if (functionSig == 0x5ea7b3) {
+      _revertOnFailure(_approve(_from(), _to(), address(_arg1()), _arg2()));
+    }
+
+    if (functionSig == 0x059cbb) {
+      _revertOnFailure(_transfer(_from(), _to(), address(_arg1()), _arg2()));
+    }
+
+    if (functionSig == 0xb872dd) {
+      _revertOnFailure(_transferFrom(_from(), _to(), address(_arg1()), address(_arg2()), _arg3()));
+    }
+
+    assembly {
+      revert(0, 0)
+    }
+  }
 
   /// @dev Internal helper for parsing encoded transactions from calldata.
   function _parseTx (
     uint256 offset,
-    uint256 boundary,
     uint256[5] memory params
   ) internal returns (uint256) {
-    if (offset >= boundary) {
-      return offset;
-    }
-
     assembly {
       function encodeRLP (valuePtr, byteLength, memPtr) -> res {
         // encode data
@@ -195,85 +279,6 @@ contract LEVM is Inventory {
     }
   }
 
-  // solhint-disable-next-line function-max-lines
-  function _handleCall (
-    address caller,
-    address target,
-    uint inOffset,
-    uint /*inSize*/
-  ) internal returns (bool) {
-    // TODO: do real checks
-    // check inSize/inOffset bounds
-    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
-
-    if (functionSig == FUNC_SIG_APPROVE) {
-      address spender = address(uint160(_memLoad(inOffset + 4)));
-      uint value = _memLoad(inOffset + 4 + 32);
-
-      setAllowance(target, caller, spender, value);
-
-      return true;
-    }
-
-    if (functionSig == FUNC_SIG_TRANSFER) {
-      address to = address(uint160(_memLoad(inOffset + 4)));
-      uint value = _memLoad(inOffset + 4 + 32);
-
-      return _transfer(caller, target, to, value);
-    }
-
-    if (functionSig == FUNC_SIG_TRANSFER_FROM) {
-      address from = address(uint160(_memLoad(inOffset + 4)));
-      address to = address(uint160(_memLoad(inOffset + 4 + 32 )));
-      uint256 tokenId = uint256(_memLoad(inOffset + 4 + 32 + 32));
-
-      return _transferFrom(caller, target, from, to, tokenId);
-    }
-
-    // invalid - call fails
-    return false;
-  }
-
-  /// @dev ERC20 transfer function, used by GatedComputing.
-  function transfer (address to, uint256 value) public returns (bool) {
-    address _caller;
-    address target;
-    assembly {
-      _caller := sload(0xaa)
-      target := sload(0xbb)
-    }
-    return _transfer(_caller, target, to, value);
-  }
-
-  /// @dev ERC20 transferFrom function, used by GatedComputing.
-  function transferFrom (address from, address to, uint256 value) public returns (bool) {
-    address _caller;
-    address target;
-    assembly {
-      _caller := sload(0xaa)
-      target := sload(0xbb)
-    }
-    return _transferFrom(_caller, target, from, to, value);
-  }
-
-  /// @dev ERC20 balanceOf function, used by GatedComputing.
-  function balanceOf (address owner) public view returns (uint256) {
-    address target;
-    assembly {
-      target := sload(0xbb)
-    }
-    return _balanceOf(target, owner);
-  }
-
-  /// @dev ERC20 allowance function, used by GatedComputing.
-  function allowance (address owner, address spender) public view returns (uint256) {
-    address target;
-    assembly {
-      target := sload(0xbb)
-    }
-    return _allowance(target, owner, spender);
-  }
-
   /// @dev Deploy a patched version of `target` and call the contract with `callData`.
   function _deployAndCall (address gated, address target, bytes memory callData) internal returns (bool) {
     bool success;
@@ -308,6 +313,22 @@ contract LEVM is Inventory {
     }
   }
 
+  function isERC721 (address token, uint256 tokenId) public view returns (bool ok) {
+    assembly {
+      // ownerOf
+      let sig := shl(224, 0x6352211e)
+      mstore(0x80, sig)
+      mstore(0x84, tokenId)
+      mstore(0, 0)
+      let success := staticcall(100000, token, 0x80, 36, 0, 32)
+      if eq(success, 1) {
+        if gt(mload(0), 1) {
+          ok := 1
+        }
+      }
+    }
+  }
+
   /// @dev Internal function for executing(replay) transactions.
   function _validateBlock (uint256 offset) internal returns (bool, uint256) {
     // a deposit-block
@@ -321,9 +342,14 @@ contract LEVM is Inventory {
         token := shr(96, calldataload(24))
         value := calldataload(44)
       }
-      uint256 newValue = getERC20(token, owner);
-      newValue += value;
-      setERC20(token, owner, newValue);
+
+      if (isERC721(token, value)) {
+        _setStorage(_hashERC721(token, value), uint256(owner));
+      } else {
+        bytes32 receiverKey = _hashERC20(token, owner);
+        uint256 newValue = _getStorage(receiverKey) + value;
+        _setStorage(receiverKey, newValue);
+      }
 
       return (true, 0);
     }
@@ -334,15 +360,11 @@ contract LEVM is Inventory {
       length := calldatasize()
     }
 
-    if (length < 65) {
-      return (true, 0);
-    }
-
     if (offset >= length) {
       return (true, 0);
     }
 
-    offset = _parseTx(offset, length, params);
+    offset = _parseTx(offset, params);
 
     address from = address(uint160(params[0]));
 
@@ -357,23 +379,49 @@ contract LEVM is Inventory {
     uint256 calldataLength = params[4];
 
     // skip if the transaction nonce is not the expected one.
-    if (nonce != getNonce(from)) {
+    if (nonce != _getStorage(bytes32(uint256(from)))) {
       return (offset >= length, offset);
     }
-    setNonce(from, nonce + 1);
+    _setStorage(bytes32(uint256(from)), nonce + 1);
 
-    bytes4 funcSig;
     assembly {
-      funcSig := calldataload(calldataOffset)
+      // zero
+      calldatacopy(params, calldatasize(), 128)
+      // copy up to 100 bytes
+      let len := calldataLength
+      if gt(len, 100) {
+        len := 100
+      }
+      calldatacopy(add(params, 28), calldataOffset, len)
     }
-    if (
-      funcSig == FUNC_SIG_BALANCE_OF ||
-      funcSig == FUNC_SIG_APPROVE ||
-      funcSig == FUNC_SIG_ALLOWANCE ||
-      funcSig == FUNC_SIG_TRANSFER ||
-      funcSig == FUNC_SIG_TRANSFER_FROM
+
+    uint256 functionSig = params[0];
+    if (functionSig == FUNC_SIG_APPROVE) {
+      address spender = address(uint160(params[1]));
+      uint256 value = params[2];
+
+      _approve(from, to, spender, value);
+
+    } else if (functionSig == FUNC_SIG_TRANSFER) {
+      address _to = address(uint160(params[1]));
+      uint256 value = params[2];
+
+      _transfer(from, to, _to, value);
+
+    } else if (functionSig == FUNC_SIG_TRANSFER_FROM) {
+      address _from = address(uint160(params[1]));
+      address _to = address(uint160(params[2]));
+      uint256 tokenId = params[3];
+
+      _transferFrom(from, to, _from, _to, tokenId);
+
+    } else if (
+      functionSig == FUNC_SIG_BALANCE_OF ||
+      functionSig == FUNC_SIG_ALLOWANCE ||
+      functionSig == FUNC_SIG_OWNER_OF ||
+      functionSig == FUNC_SIG_GET_APPROVED
     ) {
-      _handleCall(from, to, calldataOffset, calldataLength);
+      // do nothing
     } else {
       bytes memory c = new bytes(calldataLength);
       assembly {

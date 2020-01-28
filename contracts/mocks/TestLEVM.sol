@@ -13,11 +13,7 @@ contract TestLEVM is LEVM {
     }
 
     while (offset < length) {
-      offset = _parseTx(offset, length, params);
-
-      if (offset == 0) {
-        break;
-      }
+      offset = _parseTx(offset, params);
 
       if (params[0] == 0) {
         // invalid sig

@@ -19,11 +19,12 @@ async function deployBridge (wallet, txOverrides, logFile) {
   const artifact = require('./../build/contracts/Bridge.json');
   let bytecode = artifact.bytecode;
 
-  const meta = 'a265627a7a72305820';
+  // ebzzr
+  const meta = '65627a7a72';
   const tmp = bytecode.indexOf(meta);
   if (tmp !== -1) {
-    bytecode = bytecode.substring(0, tmp);
-    logFile.write(`stripped bytecode ${(artifact.bytecode.length - 2) / 2, (bytecode.length -2 ) / 2}\n`);
+    bytecode = bytecode.substring(0, tmp - 2);
+    logFile.write(`stripped bytecode: -${((artifact.bytecode.length - 2) / 2) - ((bytecode.length - 2) / 2)} bytes\n`);
   }
 
   while (true) {

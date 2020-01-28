@@ -120,16 +120,21 @@ contract GatedComputing {
           case 0xf1 {
             // TODO
             // check function sig
-
+            // call(g, a, v, in, insize, out, outsize)
             // POP - gas
             // PUSH1
             // 0xbb
             // SSTORE - (0xbb, a)
+            // POP 0x50 - value
+            // CALLVALUE 0x34
+            // DUP2 0x81
+            // MSTORE8 0x53
+            // CALLVALUE
             // CALLER
             // GAS
             // CALLCODE
-            mstore(ptr, 0x5060bb55335af200000000000000000000000000000000000000000000000000)
-            ptr := add(ptr, 7)
+            mstore(ptr, 0x5060bb555034815334335af20000000000000000000000000000000000000000)
+            ptr := add(ptr, 12)
           }
           // STATICCALL
           case 0xfa {
@@ -146,7 +151,7 @@ contract GatedComputing {
             // SWAP1 - reverse first operation
             // STATICCALL
             // PUSH 1
-            // 13 - 0d <offset>
+            // 16 - 0x10 <offset>
             // PC
             // ADD
             // JUMP
@@ -156,13 +161,16 @@ contract GatedComputing {
             // PUSH1
             // 0xbb
             // SSTORE - (0xbb, a)
+            // CALLVALUE 0x34
+            // DUP2 0x81
+            // MSTORE8 0x53
             // 0 - CALLVALUE
             // CALLER
             // GAS
             // CALLCODE
-            // JUMPDEST
-            mstore(ptr, 0x9080600810600a58015790fa600d5801565b905060bb5534335af25b00000000)
-            ptr := add(ptr, 28)
+            // JUMPDEST = 16
+            mstore(ptr, 0x9080600810600a58015790fa60105801565b905060bb5534815334335af25b00)
+            ptr := add(ptr, 31)
           }
           // CODESIZE
           case 0x38 {
@@ -182,6 +190,18 @@ contract GatedComputing {
             mstore(ptr, 0x60aa543c00000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 4)
           }
+          // SLOAD
+          case 0x54 {
+            // TODO
+            mstore(ptr, 0x5060030000000000000000000000000000000000000000000000000000000000)
+            ptr := add(ptr, 3)
+          }
+          // SSTORE
+          case 0x55 {
+            // TODO
+            mstore(ptr, 0x5050000000000000000000000000000000000000000000000000000000000000)
+            ptr := add(ptr, 2)
+          }
           default {
             let op := 0xfe
             if and(shl(opcode, 1), 0x640a0000000000000000001fffffffffffffffff0fcf00006bfd00013fff0fff) {
@@ -196,9 +216,6 @@ contract GatedComputing {
       let codeEnd := ptr
       // TODO: check boundaries
       let count := mload(0)
-      if gt(count, 180) {
-        revert(0, 0)
-      }
       // we add size: (count * instructions) + 7 + 32 (padding)
       let plusSize := add(mul(count, 15), 39)
       if gt(plusSize, 4000) {

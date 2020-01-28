@@ -807,9 +807,13 @@ module.exports = class EVMRuntime {
       const precompile = PRECOMPILED[toAddress.toString()];
       const r = await precompile(data);
 
-      this.memStore(runState, outOffset, r.returnValue, new BN(0), outLength);
+      if (r.exception === 1) {
+        this.memStore(runState, outOffset, r.returnValue, new BN(0), outLength);
+        runState.returnValue = r.returnValue;
+      } else {
+        runState.returnValue = Buffer.alloc(0);
+      }
 
-      runState.returnValue = r.returnValue;
       runState.stack.push(new BN(r.exception));
 
       return;

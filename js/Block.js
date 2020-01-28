@@ -43,6 +43,12 @@ module.exports = class Block {
     console.log(`Block(${this.number})`, ...args);
   }
 
+  freeze () {
+    // TODO
+    // freeze other stuff too
+    this.inventory.freeze();
+  }
+
   async refactor (prevBlock, bridge) {
     this.hash = null;
     this.prevBlock = prevBlock;
@@ -98,6 +104,8 @@ module.exports = class Block {
       }
 
       tx.logs = logs;
+      tx.status = errno === 0 ? '0x1' : '0x0';
+
       this.nonces[tx.from] = tx.nonce + BIG_ONE;
       this.inventory.trackNonce(tx.from, tx.nonce + BIG_ONE);
       this.transactions[tx.hash] = tx;
@@ -153,20 +161,7 @@ module.exports = class Block {
   async executeTx (tx, bridge, dry) {
     const customEnvironment = this.inventory.clone();
 
-    // TODO
-    const FUNC_SIG_BALANCE_OF = '0x70a08231';
-    const FUNC_SIG_APPROVE = '0x095ea7b3';
-    const FUNC_SIG_ALLOWANCE = '0xdd62ed3e';
-    const FUNC_SIG_TRANSFER = '0xa9059cbb';
-    const FUNC_SIG_TRANSFER_FROM = '0x23b872dd';
-
-    if (
-      !tx.data.startsWith(FUNC_SIG_BALANCE_OF) &&
-      !tx.data.startsWith(FUNC_SIG_APPROVE) &&
-      !tx.data.startsWith(FUNC_SIG_ALLOWANCE) &&
-      !tx.data.startsWith(FUNC_SIG_TRANSFER) &&
-      !tx.data.startsWith(FUNC_SIG_TRANSFER_FROM)
-    ) {
+    if (!customEnvironment.__proto__.hasOwnProperty(tx.data.substring(2, 10))) {
       const code = Utils.toUint8Array(await bridge.rootProvider.getCode(tx.to));
       const data = Utils.toUint8Array(tx.data);
       const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
@@ -195,7 +190,7 @@ module.exports = class Block {
     const target = tx.to.toLowerCase();
     const data = tx.data.replace('0x', '');
     const [ret, logs] = customEnvironment.handleCall(msgSender, target, data);
-    const errno = ret === '0x' ? 7 : 0;
+    const errno = typeof ret === 'string' ? 0 : 7;
 
     if (errno === 0 && !dry) {
       this.inventory = customEnvironment;
@@ -270,7 +265,6 @@ module.exports = class Block {
     const txData = {
       to: bridge.contract.address,
       data: FUNC_SIG_SUBMIT_BLOCK + rawData,
-      value: bridge.BOND_AMOUNT,
     };
 
     // post data
@@ -288,9 +282,7 @@ module.exports = class Block {
     );
 
     // TODO: blockHash/number might not be the same if additional blocks are submitted in the meantime
-    const blockHash = ethers.utils.keccak256('0x' + this.number.toString(16).padStart(64, '0') + rawData);
-
-    return blockHash;
+    return this.number;
   }
 
   /// @dev Computes the solution for this Block.
@@ -312,8 +304,8 @@ module.exports = class Block {
     if (doItWrong) {
       this.log('BadNodeMode!');
 
-      buf = Buffer.alloc(64);
-      buf[63] = 1;
+      buf = Buffer.alloc(65);
+      buf[64] = 1;
     }
 
     if (buf.length > bridge.MAX_SOLUTION_SIZE) {

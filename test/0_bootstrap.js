@@ -13,6 +13,7 @@ it('start the nodes', async function () {
 
     const proc = spawn('scripts/debug.js', [], { env: Object.assign({ LOG_FILE: './nodes.log' }, process.env) });
     proc.on('exit', () => process.exit(1));
+    process.on('exit', () => proc.kill());
 
     while (true) {
       try {

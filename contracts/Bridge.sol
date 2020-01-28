@@ -2,7 +2,6 @@ pragma solidity ^0.5.2;
 
 import './_Bridge.sol';
 
-// TODO: investigate possible re-entrancy attacks
 contract Bridge is _Bridge {
   constructor () public {
     createdAtBlock = block.number;
@@ -13,10 +12,14 @@ contract Bridge is _Bridge {
 
   /// @dev Deposit `token` and value (`amountOrId`) into bridge.
   /// Only the ERC20 standard is supported for now.
+  /// @param amountOrId Amount or the token id.
+  /// @param token The ERC20 token address.
   function deposit (address token, uint256 amountOrId) public {
     // TODO: check for zero amountOrId?
 
-    uint256 pending = highestPendingBlock + 1;
+    uint256 pending = pendingHeight + 1;
+    pendingHeight = pending;
+
     bytes32 blockHash;
     assembly {
       // our deposit block
@@ -36,26 +39,34 @@ contract Bridge is _Bridge {
       mstore(0x84, caller())
       mstore(0xa4, address())
       mstore(0xc4, amountOrId)
-      let success := call(gas(), token, 0, 0x80, 0x64, 0, 0x20)
+      let success := call(gas(), token, 0, 0x80, 0x64, 0, 0)
       if iszero(success) {
         revert(0, 0)
       }
-      if iszero(mload(0)) {
-        revert(0, 0)
-      }
     }
-
-    blocks[blockHash] = msg.sender;
-    highestPendingBlock = pending;
+    blocks[pending] = blockHash;
 
     emit Deposit(token, msg.sender, amountOrId);
   }
 
-  /// @dev Withdraw `token` and `amountOrId` from bridge.
+  /// @dev Withdraw `token` and `tokenId` from bridge.
   /// `tokenId` is a placeholder until we support ERC721.
-  function withdraw (address token, uint256 /*tokenId*/) public {
-    uint256 val = getExitValue(token, msg.sender);
-    setExitValue(token, msg.sender, 0);
+  /// @param token address of the token.
+  /// @param tokenId ERC721 token id.
+  function withdraw (address token, uint256 tokenId) public {
+    uint256 val;
+
+    if (isERC721(token, tokenId)) {
+      address owner = getERC721Exit(token, tokenId);
+      if (owner == address(0) || owner != msg.sender) {
+        revert();
+      }
+      val = tokenId;
+      _setERC721Exit(token, address(0), val);
+    } else {
+      val = getExit(token, msg.sender);
+      _setExit(token, msg.sender, 0);
+    }
 
     assembly {
       let sig := shl(224, 0x23b872dd)
@@ -63,11 +74,8 @@ contract Bridge is _Bridge {
       mstore(0x84, address())
       mstore(0xa4, caller())
       mstore(0xc4, val)
-      let success := call(gas(), token, 0, 0x80, 0x64, 0, 0x20)
+      let success := call(gas(), token, 0, 0x80, 0x64, 0, 0)
       if iszero(success) {
-        revert(0, 0)
-      }
-      if iszero(mload(0)) {
         revert(0, 0)
       }
     }
@@ -75,7 +83,6 @@ contract Bridge is _Bridge {
 
   /// @dev Submit a transaction blob (a block)
   function submitBlock () public payable {
-    _checkBond();
     _checkCaller();
 
     // Submitting special blocks like deposits-blocks is not allowed.
@@ -84,10 +91,10 @@ contract Bridge is _Bridge {
       revert();
     }
 
-    uint256 pending = highestPendingBlock + 1;
+    uint256 pending = pendingHeight + 1;
     bytes32 blockHash = _blockHash(pending);
-    blocks[blockHash] = msg.sender;
-    highestPendingBlock = pending;
+    blocks[pending] = blockHash;
+    pendingHeight = pending;
 
     emit BlockBeacon();
   }
@@ -95,31 +102,27 @@ contract Bridge is _Bridge {
   /// @dev Register solution given `blockHash`.
   /// Triggers INSPECTION_PERIOD in number of root blocks
   function submitSolution (
-    bytes32 blockHash,
+    uint256 blockNumber,
     bytes32 solutionHash
   ) public {
-    _checkCaller();
-    _checkBlock(blockHash);
-
+    // TODO
+    require(blockNumber == finalizedHeight + 1);
     require(solutionHash != 0);
-    require(blockSolutions[blockHash] == 0);
+    require(blocks[blockNumber] != 0);
+    require(blockSolutions[blockNumber] == 0);
 
-    blockSolutions[blockHash] = solutionHash;
-    timeOfSubmission[blockHash] = block.number;
+    blockSolutions[blockNumber] = solutionHash;
+    timeOfSubmission[blockNumber] = block.number;
 
-    emit NewSolution(blockHash, solutionHash);
+    emit NewSolution(blockNumber, solutionHash);
   }
 
   /// @dev Challenge a solution
   function dispute () public {
-    uint256 gasNow;
-    assembly {
-      gasNow := gas()
-    }
-
-    _checkCaller();
     // validate the block-data
-    bytes32 blockHash = _blockHash(currentBlock + 1);
+    uint256 blockNumber = finalizedHeight + 1;
+    bytes32 blockHash = _blockHash(blockNumber);
+    require(blocks[blockNumber] == blockHash);
 
     uint256 offsetStart = disputeOffset;
     if (offsetStart == 0) {
@@ -131,19 +134,16 @@ contract Bridge is _Bridge {
 
     if (complete) {
       // if we are done, finalize this block
-      _resolveBlock(blockHash, msg.sender);
+      _resolveBlock(blockNumber);
       return;
     }
 
     disputeOffset = nextOffset;
-
-    // TODO: payout part of the bond!
-    // gasNow - gas()
   }
 
   /// @dev Returns true if `blockHash` can be finalized, else false.
-  function canFinalizeBlock (bytes32 blockHash) public view returns (bool) {
-    uint256 time = timeOfSubmission[blockHash];
+  function canFinalizeBlock (uint256 blockNumber) public view returns (bool) {
+    uint256 time = timeOfSubmission[blockNumber];
     // solution too young
     if (time == 0 || block.number <= (time + INSPECTION_PERIOD)) {
       return false;
@@ -155,39 +155,43 @@ contract Bridge is _Bridge {
 
   /// @dev Finalize solution and move to the next block.
   /// Solution must be past the `INSPECTION_PERIOD`.
-  function finalizeSolution (bytes32 blockHash, bytes calldata) external {
+  function finalizeSolution (uint256 blockNumber) external {
     bytes32 solutionHash;
     assembly {
-      let size := sub(calldatasize(), 100)
+      let size := sub(calldatasize(), 36)
       // MAX_SOLUTION_SIZE
       if gt(size, 2048) {
         revert(0, 0)
       }
-      calldatacopy(0x80, 100, size)
+      calldatacopy(0x80, 36, size)
       solutionHash := keccak256(0x80, size)
     }
 
-    require(solutionHash == blockSolutions[blockHash]);
+    require(solutionHash == blockSolutions[blockNumber]);
 
-    if (!canFinalizeBlock(blockHash)) {
+    if (!canFinalizeBlock(blockNumber)) {
       revert();
     }
 
-    _resolveBlock(blockHash, msg.sender);
+    _resolveBlock(blockNumber);
 
     // update our storage
     // TODO
     // exits needs to be incremented
     assembly {
-      let solution := 68
-      let end := add(add(solution, 0x20), calldataload(solution))
-
-      for { let ptr := add(solution, 0x20) } lt(ptr, end) { ptr := add(ptr, 0x40) } {
+      for { let ptr := 36 } lt(ptr, calldatasize()) { } {
         let key := calldataload(ptr)
-        let val := calldataload(add(ptr, 0x20))
+        ptr := add(ptr, 32)
+        let prefix := byte(0, calldataload(ptr))
+        ptr := add(ptr, 1)
+        let val := calldataload(ptr)
+        ptr := add(ptr, 32)
 
         if lt(key, 0xffff) {
           revert(0, 0)
+        }
+        if iszero(prefix) {
+          val := add(val, sload(key))
         }
         sstore(key, val)
       }

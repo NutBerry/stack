@@ -7,9 +7,15 @@
 
 ![Meme](https://nutberry.github.io/assets/minion.jpg)
 
-The goal of this project is a permissionless layer-2 solution with support for stateful smart contracts.
-The design is similiar to what we generally call rollups but it intentionally has the same transaction encoding
-and signing scheme as Ethereum transactions to be one-to-one compatible with the existing ecosystem.
+The goal of the NutBerry project is a permissionless optimistic rollup layer-2 solution with support for stateful smart contracts.
+NutBerry intentionally has the same transaction encoding and signing scheme as Ethereum transactions to be one-to-one compatible with the existing ecosystem.
+
+* No special/additional tooling for developers necessary.
+* No special interfaces in smart contracts.
+
+Interacting with ERC20/ERC721 tokens works exactly as on the ethereum root-chain.
+
+In a nutshell, NutBerry improves the latency of trustless interactions(smart contracts) and improves transaction throughput.
 
 The most anticipated feature is the possibility for on-chain EVM verification, that makes it possible to
 run smart contracts on a permissionless / trustless layer 2 solution.
@@ -17,22 +23,21 @@ Though, the runtime has some restrictions like not be able to call other contrac
 That is; a state-minimized EVM or LEVM - Lean Ethereum Virtual Machine.
 
 Data availability is fully achieved on the root-chain and the contract is able verify and replay
-all transactions either through directly finalizing a Block of transactions on-chain or via
-an interactive computation verification game to offload the computation and to enforce correctness on-chain for any given block.
+all transactions either through directly finalizing a Block of transactions on-chain or via non-interactive fraud proofs to enforce correctness on-chain for any given block.
 
 # Rough Roadmap
 
-1st Milestone
-Support the ERC20 token standard.
+*Non-exhaustive list. NutBerry is WIP*
 
-2nd Milestone
-Support the ERC721 standard.
+- [x] Support the ERC20 token standard.
+- [x] Support arbitrary stateless smart contracts.
+- [x] Support the ERC721 standard.
+- [ ] Stateful smart contracts, aka smart contracts with support for storage.
+- [ ] State-roots / merkelized state.
+- [ ] Additional signing schemes (ERC712) and BLS aggregates.
+- [ ] NutBerry-node: P2P Connectivity/Exchange via JSON RPC - Simple HTTP (pub-key, node-id) exchange with switch to https.
+- [ ] Recursive Gated Computing.
 
-3rd Milestone
-Support arbitray stateless smart contracts.
-
-4th Milestone
-Stateful smart contracts, aka smart contracts with support for storage.
 
 # How to get started
 
@@ -58,7 +63,7 @@ In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows si
 
 ### Client
 
-The NutBerry client-node `js/bin.js` needs the following environment variables:
+The NutBerry-node `js/bin.js` needs the following environment variables:
 
 * `BRIDGE_ADDRESS` - 0x... The contract address of the Bridge on the root-chain.
 * `PRIV_KEY` - 0x... The private key for a root-chain account. That account should have some ether to be useful.
