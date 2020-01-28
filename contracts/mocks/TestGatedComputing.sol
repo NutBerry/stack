@@ -187,4 +187,14 @@ contract TestGatedComputing is LEVM {
       log1(0, 0, 1)
     }
   }
+
+  function doSTATICCALL (address tgt, bytes calldata input) external {
+    assembly {
+      calldatacopy(0, 0, calldatasize())
+      let success := staticcall(gas(), tgt, 100, mload(68), 0, 32)
+      if or( iszero(returndatasize()), iszero(success) ) {
+        revert(0, 0)
+      }
+    }
+  }
 }

@@ -150,6 +150,52 @@ describe('GatedComputing', async function () {
     }
   );
 
+  [
+    { address: '0x0000000000000000000000000000000000000000', data: ''.padStart(256, '0'), throws: true },
+    { address: '0x0000000000000000000000000000000000000001',
+      data: 'ab8656bf3b36e693ac8f062f75eac871becae7676e69837cab98fad6e87c6dee' +
+            '000000000000000000000000000000000000000000000000000000000000001c' +
+            '06394c2c6b398998e134933736600208e90c5f4f096e2ea4ae903735f796fafd' +
+            '0257d5ccc65a6a65aa32dceec1ca19c8fe7b5d0652d00ef034aebdbcd8c39982',
+    },
+    { address: '0x0000000000000000000000000000000000000002', data: ''.padStart(256, '0') },
+    { address: '0x0000000000000000000000000000000000000003', data: ''.padStart(256, '0') },
+    { address: '0x0000000000000000000000000000000000000004', data: ''.padStart(256, '0') },
+    { address: '0x0000000000000000000000000000000000000005',
+      data: '0000000000000000000000000000000000000000000000000000000000000020' +
+            '0000000000000000000000000000000000000000000000000000000000000020' +
+            '0000000000000000000000000000000000000000000000000000000000000020' +
+            '0000000000000000000000000000000000000000000000000000000000000003' +
+            '000000000000000000000000000000000000000000000000000000000000ffff' +
+            '8000000000000000000000000000000000000000000000000000000000000000',
+    },
+    { address: '0x0000000000000000000000000000000000000006', data: ''.padStart(256, '0') },
+    { address: '0x0000000000000000000000000000000000000007', data: ''.padStart(256, '0') },
+    { address: '0x0000000000000000000000000000000000000008', data: ''.padStart(192 * 2, '0') },
+    { address: '0x0000000000000000000000000000000000000009', data: ''.padStart(213 * 2, '0'), throws: true },
+    { address: '0x000000000000000000000000000000000000000a', data: ''.padStart(256, '0'), throws: true },
+  ].forEach(
+    ({ address, data, throws }) => {
+      it(`STATICCALL ${address}`, async () => {
+        const calldata = testGatedContract.interface.functions.doSTATICCALL.encode([address, `0x${data}`]);
+        let reverted = false;
+        try {
+          await (await wallet.sendTransaction(
+            {
+              to: patchedAddress,
+              data: calldata,
+              gasLimit,
+            }
+          )).wait();
+        } catch (e) {
+          reverted = true;
+        }
+
+        assert.equal(reverted, throws || false);
+      });
+    }
+  );
+
   it('TestContract.test()', async () => {
     const data = testContractInterface.functions.test.encode(
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]

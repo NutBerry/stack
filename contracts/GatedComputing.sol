@@ -136,8 +136,8 @@ contract GatedComputing {
             // SWAP1
             // DUP1
             // PUSH1
-            // 10 - 0a
-            // LT 10 <ADDR>
+            // 8 - 08
+            // LT 8 <ADDR>
             // PUSH1 <offset>
             // 10 - 0a
             // PC
@@ -161,7 +161,7 @@ contract GatedComputing {
             // GAS
             // CALLCODE
             // JUMPDEST
-            mstore(ptr, 0x9080600a10600a58015790fa600d5801565b905060bb5534335af25b00000000)
+            mstore(ptr, 0x9080600810600a58015790fa600d5801565b905060bb5534335af25b00000000)
             ptr := add(ptr, 28)
           }
           // CODESIZE

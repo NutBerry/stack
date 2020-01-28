@@ -11,11 +11,6 @@ contract LEVM is Inventory {
   bytes4 constant internal FUNC_SIG_ALLOWANCE = hex'dd62ed3e';
   bytes4 constant internal FUNC_SIG_TRANSFER = hex'a9059cbb';
   bytes4 constant internal FUNC_SIG_TRANSFER_FROM = hex'23b872dd';
-  // bytes4 constant internal FUNC_SIG_OWNER_OF = hex'6352211e';
-  // bytes4 constant internal FUNC_SIG_GET_APPROVED = hex'081812fc';
-  // bytes4 constant internal FUNC_SIG_READ_DATA = hex'37ebbc03';
-  // bytes4 constant internal FUNC_SIG_WRITE_DATA = hex'a983d43f';
-  // bytes4 constant internal FUNC_SIG_BREED = hex'451da9f9';
 
   /// @dev Internal helper for parsing encoded transactions from calldata.
   function _parseTx (
@@ -207,10 +202,9 @@ contract LEVM is Inventory {
     uint inOffset,
     uint /*inSize*/
   ) internal returns (bool) {
-    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
-
     // TODO: do real checks
     // check inSize/inOffset bounds
+    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
 
     if (functionSig == FUNC_SIG_APPROVE) {
       address spender = address(uint160(_memLoad(inOffset + 4)));
@@ -240,6 +234,7 @@ contract LEVM is Inventory {
     return false;
   }
 
+  /// @dev ERC20 transfer function, used by GatedComputing.
   function transfer (address to, uint256 value) public returns (bool) {
     address _caller;
     address target;
@@ -250,6 +245,7 @@ contract LEVM is Inventory {
     return _transfer(_caller, target, to, value);
   }
 
+  /// @dev ERC20 transferFrom function, used by GatedComputing.
   function transferFrom (address from, address to, uint256 value) public returns (bool) {
     address _caller;
     address target;
@@ -260,17 +256,16 @@ contract LEVM is Inventory {
     return _transferFrom(_caller, target, from, to, value);
   }
 
+  /// @dev ERC20 balanceOf function, used by GatedComputing.
   function balanceOf (address owner) public view returns (uint256) {
     address target;
     assembly {
       target := sload(0xbb)
-      if iszero(target) {
-        revert(0, 0)
-      }
     }
     return _balanceOf(target, owner);
   }
 
+  /// @dev ERC20 allowance function, used by GatedComputing.
   function allowance (address owner, address spender) public view returns (uint256) {
     address target;
     assembly {

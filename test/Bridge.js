@@ -7,15 +7,11 @@ const assert = require('assert');
 
 const ERC20_ABI = require('./../build/contracts/ERC20.json').abi;
 const ERC721_ABI = require('./../build/contracts/ERC721.json').abi;
-const ERC1948_ABI = require('./../build/contracts/ERC1948.json').abi;
-const ERC1949_ABI = require('./../build/contracts/ERC1949.json').abi;
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 const BRIDGE = require('./../build/contracts/Bridge.json');
 
 const ERC20 = require('./../build/contracts/ERC20.json');
 const ERC721 = require('./../build/contracts/ERC721.json');
-const ERC1948 = require('./../build/contracts/ERC1948.json');
-const ERC1949 = require('./../build/contracts/ERC1949.json');
 const TestContract = require('./../build/contracts/TestContract.json');
 
 const NODE_ADDR = '0xDf08F82De32B8d460adbE8D72043E3a7e25A3B39';
@@ -55,10 +51,6 @@ describe('Bridge/RPC', async function () {
   let erc20Root;
   let erc721;
   let erc721Root;
-  let erc1948;
-  let erc1948Root;
-  let erc1949;
-  let erc1949Root;
   let rootProvider = new ethers.providers.JsonRpcProvider(`http://localhost:${process.env.RPC_PORT}`);
   let provider;
   let nodes;
@@ -67,6 +59,7 @@ describe('Bridge/RPC', async function () {
   let walletBob;
   let walletCharlie;
   let testContract;
+  let erc20TransferCount = 0;
 
   function sleep (ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,8 +80,13 @@ describe('Bridge/RPC', async function () {
   }
 
   async function erc20Transfer (...args) {
-    const tx = await erc20.transfer(...args);
+    let tx = await erc20.transfer(...args);
     transactions.push(tx.hash);
+    erc20TransferCount++;
+
+    tx = await tx.wait();
+    assert.equal(tx.logs.length, 1, 'logs emitted');
+
     return tx;
   }
 
@@ -135,24 +133,6 @@ describe('Bridge/RPC', async function () {
     erc721 = new ethers.Contract(erc721Root.address, ERC721_ABI, walletAlice);
     let tx = await erc721Root.mint(walletAlice.address, ERC721_TOKEN_ID);
     await tx.wait();
-
-    _factory = new ethers.ContractFactory(
-      ERC1948.abi,
-      ERC1948.bytecode,
-      rootWalletAlice,
-    );
-    erc1948Root = await _factory.deploy();
-    await erc1948Root.deployTransaction.wait();
-    erc1948 = new ethers.Contract(erc1948Root.address, ERC1948_ABI, walletAlice);
-
-    _factory = new ethers.ContractFactory(
-      ERC1949.abi,
-      ERC1949.bytecode,
-      rootWalletAlice,
-    );
-    erc1949Root = await _factory.deploy('ERC1949 Token', 'ERC1949');
-    await erc1949Root.deployTransaction.wait();
-    erc1949 = new ethers.Contract(erc1949Root.address, ERC1949_ABI, walletAlice);
 
     _factory = new ethers.ContractFactory(
       TestContract.abi,
@@ -287,7 +267,6 @@ describe('Bridge/RPC', async function () {
     it('Alice: ERC20 transfer', async () => {
       const balanceBefore = await erc20.balanceOf(walletBob.address);
       let tx = await erc20Transfer(walletBob.address, '0x01');
-      tx = await tx.wait();
 
       assert.equal(tx.from, walletAlice.address);
       const balanceAfter = await erc20.balanceOf(walletBob.address);
@@ -308,16 +287,16 @@ describe('Bridge/RPC', async function () {
     });
 
     it('Alice: ERC20 transfer exit', async () => {
-      let balance = await erc20.balanceOf(walletAlice.address);
-      let tx = await erc20Transfer(ADDRESS_ZERO, balance);
-      tx = await tx.wait();
+      const balance = await erc20.balanceOf(walletAlice.address);
+      const tx = await erc20Transfer(ADDRESS_ZERO, balance);
 
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
       assert.equal(balanceAfter.toNumber(), 0, 'balance of Alice');
     });
 
     it('Bob: ERC20 transfer exit', async () => {
-      let balance = await erc20.balanceOf(walletBob.address);
+      const balance = await erc20.balanceOf(walletBob.address);
+
       let tx = await erc20.connect(walletBob).transfer(ADDRESS_ZERO, 1);
       tx = await tx.wait();
 
@@ -327,7 +306,7 @@ describe('Bridge/RPC', async function () {
 
     /*
     it('Bob: ERC20 transfer exit loop', async () => {
-      let balance = await erc20.balanceOf(walletBob.address);
+      const balance = await erc20.balanceOf(walletBob.address);
 
       const len = balance.toNumber();
       for (let i = 0; i < len; i++) {
@@ -453,7 +432,6 @@ describe('Bridge/RPC', async function () {
 
     it('exit transfer', async () => {
       let tx = await erc20Transfer(ADDRESS_ZERO, 1);
-      tx = await tx.wait();
     });
 
     it('finalize exit', async () => {
@@ -909,6 +887,26 @@ describe('Bridge/RPC', async function () {
         req.write('POST / HTTP/1.0\r\ncontent-length: 1\r\n\r\n');
         req.end(Buffer.alloc((8 << 20) + 1));
       });
+    });
+
+    it('eth_getLogs - Transfer', async () => {
+      const logCount = await new Promise(async (resolve) => {
+        const topic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        const filter = erc20.filters.Transfer(erc20.signer.address);
+        let count = 0;
+
+        setTimeout(() => {
+          resolve(count);
+        }, 5000);
+
+        erc20.on(filter, async (from, to, value, evt) => {
+          assert.equal(evt.topics[0], topic, 'topic must be correct');
+          count++;
+        });
+        erc20.provider.resetEventsBlock(1);
+      });
+
+      assert.equal(logCount, erc20TransferCount, 'logCount should match erc20TransferCount');
     });
   });
 });
