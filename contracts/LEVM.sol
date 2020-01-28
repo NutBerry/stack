@@ -202,10 +202,9 @@ contract LEVM is Inventory {
     uint inOffset,
     uint /*inSize*/
   ) internal returns (bool) {
-    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
-
     // TODO: do real checks
     // check inSize/inOffset bounds
+    bytes4 functionSig = bytes4(bytes32(_memLoad(inOffset)));
 
     if (functionSig == FUNC_SIG_APPROVE) {
       address spender = address(uint160(_memLoad(inOffset + 4)));
@@ -235,6 +234,7 @@ contract LEVM is Inventory {
     return false;
   }
 
+  /// @dev ERC20 transfer function, used by GatedComputing.
   function transfer (address to, uint256 value) public returns (bool) {
     address _caller;
     address target;
@@ -245,6 +245,7 @@ contract LEVM is Inventory {
     return _transfer(_caller, target, to, value);
   }
 
+  /// @dev ERC20 transferFrom function, used by GatedComputing.
   function transferFrom (address from, address to, uint256 value) public returns (bool) {
     address _caller;
     address target;
@@ -255,6 +256,7 @@ contract LEVM is Inventory {
     return _transferFrom(_caller, target, from, to, value);
   }
 
+  /// @dev ERC20 balanceOf function, used by GatedComputing.
   function balanceOf (address owner) public view returns (uint256) {
     address target;
     assembly {
@@ -263,6 +265,7 @@ contract LEVM is Inventory {
     return _balanceOf(target, owner);
   }
 
+  /// @dev ERC20 allowance function, used by GatedComputing.
   function allowance (address owner, address spender) public view returns (uint256) {
     address target;
     assembly {
