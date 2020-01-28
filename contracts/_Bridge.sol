@@ -5,7 +5,7 @@ import './LEVM.sol';
 // TODO: investigate possible re-entrancy attacks
 contract _Bridge is LEVM {
   uint16 public constant VERSION = 2;
-  uint16 public constant MAX_BLOCK_SIZE = 8096;
+  uint16 public constant MAX_BLOCK_SIZE = 16192;
   uint16 public constant MAX_SOLUTION_SIZE = 2048;
   // >~14 minutes | in Blocks
   uint16 public constant INSPECTION_PERIOD = 60;
@@ -40,7 +40,7 @@ contract _Bridge is LEVM {
     assembly {
       let size := sub(calldatasize(), 4)
       // MAX_BLOCK_SIZE
-      if or(gt(size, 8096), iszero(size)) {
+      if or(gt(size, 16192), iszero(size)) {
         revert(0, 0)
       }
 

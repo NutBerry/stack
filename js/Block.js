@@ -30,6 +30,8 @@ module.exports = class Block {
     if (prevBlock) {
       // copy nonces since `prevBlock`
       this.nonces = Object.assign({}, prevBlock.nonces);
+      // clear storageKeys
+      this.inventory.storageKeys = {};
     }
   }
 
@@ -46,10 +48,10 @@ module.exports = class Block {
     this.prevBlock = prevBlock;
     this.inventory = prevBlock.inventory.clone();
     this.number = prevBlock.number + BIG_ONE;
+    this.nonces = Object.assign({}, prevBlock.nonces);
+    this.inventory.storageKeys = {};
 
     this.log(`Refactor:Started ${this.transactionHashes.length} transactions`);
-
-    this.nonces = Object.assign({}, prevBlock.nonces);
 
     const hashes = this.transactionHashes;
     const txs = this.transactions;
@@ -268,6 +270,8 @@ module.exports = class Block {
         this.log('reached MAX_BLOCK_SIZE');
         break;
       }
+
+      payloadLength += byteLength;
 
       transactions.push(encoded);
     }

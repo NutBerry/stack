@@ -95,22 +95,20 @@ module.exports = class Inventory {
   }
 
   _incrementExit (target, owner, value) {
-    // TODO
-    // increment
-    let k = ethers.utils.keccak256(
+    const k = ethers.utils.keccak256(
       Buffer.from(
         '00000001' + owner.replace('0x', '') + target.replace('0x', ''),
         'hex'
       )
     );
 
-    value = `0x${value.toString(16).padStart(64, '0')}`;
-    this.storageKeys[k] = value;
+    const oldValue = BigInt(this.storageKeys[k] || 0);
+    this.storageKeys[k] = `0x${(oldValue + value).toString(16).padStart(64, '0')}`;
   }
 
   trackNonce (target, value) {
     const k = '0x' + target.replace('0x', '').padStart(64, '0');
-    this.storageKeys[k] = '0x' + value.toString(16).padStart(64, '0');
+    this.storageKeys[k] = `0x${value.toString(16).padStart(64, '0')}`;
   }
 
   _hashERC20 (target, owner, value) {

@@ -39,7 +39,6 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
       topics.push('0x' + args.pop().toString(16).padStart(64, '0'));
     }
 
-    // TODO: add `address`
     const obj = {
       address: `0x${runState.address.toString('hex')}`,
       topics,

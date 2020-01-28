@@ -313,15 +313,16 @@ describe('Bridge/RPC', async function () {
     });
 
     it('Alice: ERC20 transfer exit', async () => {
-      let balance = await erc20.balanceOf(walletAlice.address);
-      let tx = await erc20Transfer(ADDRESS_ZERO, balance);
+      const balance = await erc20.balanceOf(walletAlice.address);
+      const tx = await erc20Transfer(ADDRESS_ZERO, balance);
 
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
       assert.equal(balanceAfter.toNumber(), 0, 'balance of Alice');
     });
 
     it('Bob: ERC20 transfer exit', async () => {
-      let balance = await erc20.balanceOf(walletBob.address);
+      const balance = await erc20.balanceOf(walletBob.address);
+
       let tx = await erc20.connect(walletBob).transfer(ADDRESS_ZERO, 1);
       tx = await tx.wait();
 
@@ -331,7 +332,7 @@ describe('Bridge/RPC', async function () {
 
     /*
     it('Bob: ERC20 transfer exit loop', async () => {
-      let balance = await erc20.balanceOf(walletBob.address);
+      const balance = await erc20.balanceOf(walletBob.address);
 
       const len = balance.toNumber();
       for (let i = 0; i < len; i++) {
