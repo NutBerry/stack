@@ -463,7 +463,7 @@ describe('Bridge/RPC', async function () {
     it('Alice: Exit', async () => {
       const value = '0xffbd';
       const balanceBefore = await erc20Root.balanceOf(walletAlice.address);
-      const exitBalance = await bridge.getExit(erc20Root.address, walletAlice.address);
+      const exitBalance = await bridge.getERC20Exit(erc20Root.address, walletAlice.address);
 
       assert.equal(exitBalance.toHexString(), value, 'exitBalance');
 
@@ -476,7 +476,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('Bob: Exit', async () => {
-      const exitValueBob = await bridge.getExit(erc20.address, walletBob.address);
+      const exitValueBob = await bridge.getERC20Exit(erc20.address, walletBob.address);
       assert.equal(exitValueBob.toString(), (1 * rounds).toString(), 'Bob\'s exit balance should accumulate');
     });
 
@@ -498,6 +498,9 @@ describe('Bridge/RPC', async function () {
 
       let owner = await bridge.getERC721Exit(erc721.address, tokenId);
       assert.equal(owner, walletBob.address, 'exit owner');
+
+      // try to exit bob's nft via alice
+      await assertRevert(bridge.withdraw(erc721.address, tokenId, { gasLimit: 6000000 }));
 
       let tx = await bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId);
       tx = await tx.wait();
@@ -593,7 +596,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('finalize exit', async () => {
-      const exitBalance = await bridge.getExit(erc20Root.address, erc20Root.signer.address);
+      const exitBalance = await bridge.getERC20Exit(erc20Root.address, erc20Root.signer.address);
 
       await waitForValueChange(
         exitBalance,
@@ -605,13 +608,13 @@ describe('Bridge/RPC', async function () {
           }
           await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
 
-          return await bridge.getExit(erc20Root.address, erc20Root.signer.address);
+          return await bridge.getERC20Exit(erc20Root.address, erc20Root.signer.address);
         }
       );
     });
 
     it('exit balance', async () => {
-      const exitBalance = await bridge.getExit(erc20Root.address, erc20Root.signer.address);
+      const exitBalance = await bridge.getERC20Exit(erc20Root.address, erc20Root.signer.address);
       assert.equal(exitBalance.toString(), '1');
     });
 
@@ -999,7 +1002,7 @@ describe('Bridge/RPC', async function () {
     it('forwardChain', async () => {
       await tryHaltSecondaryNodes(false);
 
-      const exitBalance = await bridge.getExit(erc20.address, walletBob.address);
+      const exitBalance = await bridge.getERC20Exit(erc20.address, walletBob.address);
       await waitForValueChange(
         exitBalance,
         async function () {
@@ -1010,7 +1013,7 @@ describe('Bridge/RPC', async function () {
             // this can return an error, ignore it
           }
 
-          return await bridge.getExit(erc20.address, walletBob.address);
+          return await bridge.getERC20Exit(erc20.address, walletBob.address);
         }
       );
     });

@@ -9,7 +9,7 @@ module.exports = [
   'function createdAtBlock() view returns (uint256)',
   'function finalizedHeight() view returns (uint256)',
   'function canFinalizeBlock(uint256 blockNumber) view returns (bool)',
-  'function getExit(address target, address owner) view returns (uint256)',
+  'function getERC20Exit(address target, address owner) view returns (uint256)',
   'function getERC721Exit (address target, uint256 tokenId) view returns (address)',
   'function isERC721(address token, uint256 tokenId) view returns (bool)',
   'function deposit(address token, uint256 amountOrId)',

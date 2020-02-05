@@ -16,7 +16,7 @@ describe('LEVM', async function () {
   let wallet;
   let mock;
 
-  function testWithNonce (i, calldata) {
+  function testWithNonce (i, calldata, invalidateSig) {
     calldata = calldata || '0x';
 
     it(`test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
@@ -30,7 +30,10 @@ describe('LEVM', async function () {
       const signed = await wallet.sign(obj);
       const parsed = ethers.utils.parseTransaction(signed);
       const encoded = Utils.encodeTx(parsed);
-      const raw = encoded.replace('0x', '');
+      let raw = encoded.replace('0x', '');
+      if (invalidateSig) {
+        raw = raw.slice(-6) + 'fcacac';
+      }
       const tx = await (await wallet.sendTransaction(
         {
           to: mock.address,
@@ -38,6 +41,11 @@ describe('LEVM', async function () {
           gasLimit: 6000000,
         }
       )).wait();
+
+      if (invalidateSig) {
+        // ignore
+        return;
+      }
 
       const params = tx.logs[tx.logs.length - 1];
       assert.equal(obj.data, params.data, 'data should match');
@@ -97,5 +105,8 @@ describe('LEVM', async function () {
     for (let i = 0x7f00; i < 0x7f01; i++) {
       testWithNonce(i, '0x' + Buffer.alloc(i).fill(i).toString('hex'));
     }
+
+    // test with invalid sig
+    testWithNonce(0xffff, '0x', true);
   });
 });
