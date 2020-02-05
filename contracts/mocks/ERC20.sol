@@ -13,7 +13,6 @@ contract ERC20 {
   mapping (address => uint) public balanceOf;
   mapping (address => mapping (address => uint)) public allowance;
 
-  bool _ret;
   bool _lock;
 
   constructor () public {
@@ -63,11 +62,7 @@ contract ERC20 {
 
     emit Transfer(from, to, value);
 
-    return _ret;
-  }
-
-  function ret (bool v) public {
-    _ret = v;
+    return true;
   }
 
   function lock (bool v) public {

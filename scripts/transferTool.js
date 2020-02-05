@@ -14,7 +14,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
       Layer1Balance: (await erc20Root.balanceOf(wallet.address)).toString(),
       Layer2Balance: (await erc20.balanceOf(wallet.address)).toString(),
       availableOnBridge: (await erc20.allowance(bridge.address, wallet.address)).toString(),
-      availableOnBridgeForExit: (await bridge.getExitValue(erc20.address, wallet.address)).toString(),
+      availableOnBridgeForExit: (await bridge.getExit(erc20.address, wallet.address)).toString(),
     }
   );
 }

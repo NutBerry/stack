@@ -4,11 +4,19 @@ import '../LEVM.sol';
 
 contract TestGatedComputing is LEVM {
   function addToken (address target, address owner, uint256 value) public {
-    setERC20(target, owner, value);
+    _setStorage(_hashERC20(target, owner), value);
   }
 
   function addAllowance (address target, address from, address spender, uint256 value) public {
-    setAllowance(target, from, spender, value);
+    _setStorage(_hashAllowance(target, from, spender), value);
+  }
+
+  function addERC721 (address target, address owner, uint256 value) public {
+    _setStorage(_hashERC721(target, value), uint256(owner));
+  }
+
+  function addApproval (address target, address spender, uint256 value) public {
+    _setStorage(_hashApproval(target, value), uint256(spender));
   }
 
   function simple () public {

@@ -2,6 +2,9 @@
 
 const { EVMRuntime, BN } = require('../evm/js/index.js');
 
+// TODO
+// gas checking is not done here.
+// replace gas opcode with fixed value; also in GatedComputing
 module.exports = class NutBerryRuntime extends EVMRuntime {
   async initRunState (obj) {
     const runState = await super.initRunState(obj);
@@ -72,12 +75,11 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
     if (typeof retData === 'string') {
       runState.returnValue = Buffer.from(retData.replace('0x', ''), 'hex');
       runState.stack.push(new BN(1));
+      this.memStore(runState, retOffset, runState.returnValue, new BN(0), retSize);
     } else {
       runState.returnValue = Buffer.alloc(0);
       runState.stack.push(new BN(0));
     }
-
-    this.memStore(runState, retOffset, runState.returnValue, new BN(0), retSize);
   }
 
   async handleSTATICCALL (runState) {
@@ -101,11 +103,26 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
     if (typeof retData === 'string') {
       runState.returnValue = Buffer.from(retData.replace('0x', ''), 'hex');
       runState.stack.push(new BN(1));
+      this.memStore(runState, retOffset, runState.returnValue, new BN(0), retSize);
     } else {
       runState.returnValue = Buffer.alloc(0);
       runState.stack.push(new BN(0));
     }
+  }
 
-    this.memStore(runState, retOffset, runState.returnValue, new BN(0), retSize);
+  async handleSLOAD (runState) {
+    const msgSender = `0x${runState.address.toString('hex')}`;
+    const key = `0x${runState.stack.pop().toString(16).padStart(64, '0')}`;
+    const value = runState.customEnvironment.storageLoad(msgSender, key);
+
+    runState.stack.push(new BN(value.replace('0x', ''), 'hex'));
+  }
+
+  async handleSSTORE (runState) {
+    const msgSender = `0x${runState.address.toString('hex')}`;
+    const key = `0x${runState.stack.pop().toString(16).padStart(64, '0')}`;
+    const value = `0x${runState.stack.pop().toString(16).padStart(64, '0')}`;
+
+    runState.customEnvironment.storageStore(msgSender, key, value);
   }
 };

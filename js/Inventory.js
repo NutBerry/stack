@@ -9,14 +9,21 @@ const UINT_ZERO = '0x00000000000000000000000000000000000000000000000000000000000
 const UINT_ONE = '0x0000000000000000000000000000000000000000000000000000000000000001';
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
-const FUNC_SIG_BALANCE_OF = '70a08231';
-const FUNC_SIG_APPROVE = '095ea7b3';
-const FUNC_SIG_ALLOWANCE = 'dd62ed3e';
-const FUNC_SIG_TRANSFER = 'a9059cbb';
-const FUNC_SIG_TRANSFER_FROM = '23b872dd';
-// For testing; at the moment
-const FUNC_SIG_OWNER_OF = '6352211e';
-const FUNC_SIG_GET_APPROVED = '081812fc';
+const TOPIC_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const TOPIC_APPROVAL = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
+
+function toStr (value, pad) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value === 'string') {
+    if (value.length > pad) {
+      return value.replace('0x', '').slice(-pad);
+    }
+    return value.replace('0x', '').padStart(pad, '0');
+  }
+  return value.toString(16).padStart(pad, '0');
+}
 
 /// @notice Supports the following functions:
 ///
@@ -30,53 +37,27 @@ const FUNC_SIG_GET_APPROVED = '081812fc';
 ///   - ownerOf (tokenId)
 ///
 /// ERC20, ERC721, ERC1948, ERC1949
+///   - approve (spender/to, value/tokenId)
 ///   - transferFrom (from, to, tokenId)
 module.exports = class Inventory {
   static fromJSON (obj) {
     const ret = new this();
-    const len = obj.bag.length;
-
-    for (let i = 0; i < len; i++) {
-      ret.addToken(obj.bag[i]);
-    }
-    ret.allowances = obj.allowances;
-    ret.storageKeys = obj.storageKeys;
+    ret.storage = Object.assign({}, obj.storage);
+    ret.storageKeys = Object.assign({}, obj.storageKeys);
 
     return ret;
   }
 
   constructor () {
-    this.tokenBag = {};
-    this.allowances = {};
+    this.storage = {};
     this.storageKeys = {};
   }
 
   toJSON () {
-    const bag = this._dumpBag(this.tokenBag);
-    const allowances = Object.assign({}, this.allowances);
-    const storageKeys = Object.assign({}, this.storageKeys);
+    const storage = this.storage;
+    const storageKeys = this.storageKeys;
 
-    return { bag, allowances, storageKeys };
-  }
-
-  _dumpBag (bag) {
-    const ret = [];
-    const tokens = Object.keys(bag);
-    const len = tokens.length;
-
-    for (let i = 0; i < len; i++) {
-      const array = bag[tokens[i]];
-      for (let k in array) {
-        const e = array[k];
-        ret.push(Object.assign({}, e));
-      }
-    }
-
-    return ret;
-  }
-
-  _isApprovedOrOwner (msgSender, token) {
-    return token.owner === msgSender || this.getApproved(msgSender, token.address, token.value);
+    return { storage, storageKeys };
   }
 
   clone () {
@@ -85,367 +66,353 @@ module.exports = class Inventory {
     return this.constructor.fromJSON(ret);
   }
 
-  _incrementExit (target, owner, value) {
+  freeze () {
+    Object.freeze(this);
+    Object.freeze(this.storage);
+    Object.freeze(this.storageKeys);
+  }
+
+  _addERC20Exit (target, owner, value) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000001' + owner.replace('0x', '') + target.replace('0x', ''),
+        '00000001' + toStr(owner, 40) + toStr(target, 40),
         'hex'
       )
     );
-
     const oldValue = BigInt(this.storageKeys[k] || 0);
-    this.storageKeys[k] = `0x${(oldValue + value).toString(16).padStart(64, '0')}`;
+    const newValue = toStr(oldValue + BigInt(value), 64);
+
+    this.storageKeys[k] = `0x00${newValue}`;
+    this.storage[k] = `0x${newValue}`;
+  }
+
+  _addERC721Exit (target, tokenId, owner) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000001' + toStr(target, 40) + toStr(tokenId, 64),
+        'hex'
+      )
+    );
+    const value = toStr(owner, 64);
+
+    this.storageKeys[k] = `0x01${value}`;
+    this.storage[k] = `0x${value}`;
   }
 
   trackNonce (target, value) {
-    const k = '0x' + target.replace('0x', '').padStart(64, '0');
-    this.storageKeys[k] = `0x${value.toString(16).padStart(64, '0')}`;
+    const k = `0x${toStr(target, 64)}`;
+    const val = toStr(value, 64);
+
+    this.storageKeys[k] = `0x01${val}`;
+    this.storage[k] = `0x${val}`;
   }
 
-  _hashERC20 (target, owner, value) {
+  _hashERC20 (target, owner) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000002' + target.replace('0x', '') + owner.replace('0x', ''),
+        '00000002' + toStr(target, 40) + toStr(owner, 40),
         'hex'
       )
     );
-    this.storageKeys[k] = value;
+
+    return k;
   }
 
-  _hashAllowance (target, owner, spender, value) {
+  _hashERC721 (target, tokenId) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000003' + target.replace('0x', '') + owner.replace('0x', '') + spender.replace('0x', ''),
+        '00000005' + toStr(target, 40) + toStr(tokenId, 64),
         'hex'
       )
     );
-    this.storageKeys[k] = value;
+
+    return k;
+  }
+
+  _hashAllowance (target, owner, spender) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000003' + toStr(target, 40) + toStr(owner, 40) + toStr(spender, 40),
+        'hex'
+      )
+    );
+
+    return k;
+  }
+
+  _hashApproval (target, tokenId) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '00000004' + toStr(target, 40) + toStr(tokenId, 64),
+        'hex'
+      )
+    );
+
+    return k;
+  }
+
+  // TODO
+  _hashStorage (target, key) {
+    const k = ethers.utils.keccak256(
+      Buffer.from(
+        '000000ff' + toStr(target, 40) + toStr(key, 64),
+        'hex'
+      )
+    );
+    return k;
+  }
+
+  _getValue (key) {
+    return this.storage[key];
+  }
+
+  _setValue (key, value) {
+    const padded = toStr(value, 64);
+    this.storage[key] = `0x${padded}`;
+    this.storageKeys[key] = `0x01${padded}`;
   }
 
   addToken (e) {
     // index by owner for ERC20,
     // else index by value (tokenId)
-    const t = {
-      address: e.address.toLowerCase(),
-      owner: e.owner.toLowerCase(),
-      value: e.value || UINT_ZERO,
-      data: e.data || UINT_ZERO,
-      isERC20: e.isERC20 || false,
-      isERC721: e.isERC721 || false,
-    };
+    const address = e.address.toLowerCase();
+    const owner = e.owner.toLowerCase();
+    const value = e.value;
 
-    let bag = this.tokenBag[t.address];
-
-    if (!bag) {
-      bag = {};
-      this.tokenBag[t.address] = bag;
-    }
-
-    if (t.isERC20) {
-      let ex = bag[t.owner];
-      if (ex) {
-        let oldValue = BigInt(ex.value);
-        let newValue = oldValue + BigInt(t.value);
-        ex.value = `0x${newValue.toString(16).padStart(64, '0')}`;
-      } else {
-        bag[t.owner] = t;
-      }
+    if (e.isERC721) {
+      this._setValue(this._hashERC721(address, value), owner);
     } else {
-      bag[t.value] = t;
+      const key = this._hashERC20(address, owner);
+      const oldValue = BigInt(this._getValue(key) || '0');
+
+      this._setValue(key, oldValue + BigInt(value));
     }
-  }
-
-  getERC20 (target, owner) {
-    const bag = this.tokenBag[target];
-
-    if (bag) {
-      const e = bag[owner];
-
-      if (e && e.isERC20) {
-        return e;
-      }
-    }
-
-    return null;
-  }
-
-  getERC721 (target, tokenId) {
-    const bag = this.tokenBag[target];
-
-    if (bag) {
-      const e = bag[tokenId];
-
-      if (e && !e.isERC20) {
-        return e;
-      }
-    }
-
-    return null;
-  }
-
-  getAllowance (target, owner, spender) {
-    const allowance = this.allowances[target + owner + spender];
-    return allowance || UINT_ZERO;
-  }
-
-  setAllowance (target, owner, spender, value) {
-    // TODO
-    this.allowances[target + owner + spender] = value;
-    this._hashAllowance(target, owner, spender, value);
-    return UINT_ONE;
-  }
-
-  addAllowance (target, owner, spender, value) {
-    target = target.toLowerCase();
-    owner = owner.toLowerCase();
-    spender = spender.toLowerCase();
-
-    let tmp = this.getAllowance(target, owner, spender);
-    let old = BigInt(tmp || '0');
-    let newVal = old + BigInt(value);
-    tmp = `0x${newVal.toString(16).padStart(64, '0')}`;
-
-    this.allowances[target + owner + spender] = tmp;
   }
 
   /// @notice ERC20 only.
-  /// @dev Assumes `target` exist in the token bag.
-  balanceOf (target, owner) {
-    const e = this.getERC20(target, owner);
-
-    if (e) {
-      return e.value;
-    }
-
-    return UINT_ZERO;
+  /// balanceOf
+  '70a08231' (_, target, owner) {
+    return [this._getValue(this._hashERC20(target, owner)) || UINT_ZERO, []];
   }
 
   /// @notice ERC20 only.
-  /// @dev Assumes `target` exist in the token bag.
-  allowance (target, owner, spender) {
-    const e = this.getERC20(target, owner);
-    const allowance = this.getAllowance(target, owner, spender);
-
-    if (e && allowance) {
-      return allowance;
-    }
-
-    return UINT_ZERO;
+  /// allowance
+  'dd62ed3e' (_, target, owner, spender) {
+    return [this._getValue(this._hashAllowance(target, owner, spender)) || UINT_ZERO, []];
   }
 
   /// @notice ERC721, ERC1948, ERC1949  only.
-  /// @dev Assumes `target` exist in the token bag.
-  ownerOf (target, tokenId) {
-    const e = this.getERC721(target, tokenId);
-
-    if (e) {
-      return e.owner.replace('0x', '').padStart(64, '0');
-    }
+  /// ownerOf
+  '6352211e' (_, target, tokenId) {
+    return [this._getValue(this._hashERC721(target, tokenId)) || UINT_ZERO, []];
   }
 
   /// @notice ERC721, ERC1948, ERC1949  only.
-  /// @dev Assumes `target` exist in the token bag.
-  getApproved (msgSender, target, tokenId) {
-    const e = this.getERC721(target, tokenId);
+  /// getApproved
+  '081812fc' (msgSender, target, tokenId) {
+    const approval = this._getValue(this._hashApproval(target, tokenId));
+    return [approval || UINT_ZERO, []];
+  }
 
-    if (e) {
-      if (this.getAllowance(target, e.owner, msgSender)) {
-        return msgSender.replace('0x', '').padStart(64, '0');
+  // approve
+  '095ea7b3' (msgSender, target, spender, value) {
+    const isERC721 = this._getValue(this._hashERC721(target, value)) || UINT_ZERO;
+
+    if (isERC721 !== UINT_ZERO) {
+      if (isERC721 !== msgSender) {
+        return [undefined, []];
       }
 
-      return UINT_ZERO;
+      this._setValue(this._hashApproval(target, value), spender);
+      const logs = [
+        {
+          topics: [
+            TOPIC_APPROVAL,
+            msgSender,
+            spender,
+            value,
+          ],
+          data: '0x',
+        },
+      ];
+
+      return [UINT_ONE, logs];
     }
+
+    this._setValue(this._hashAllowance(target, msgSender, spender), value);
+    const logs = [
+      {
+        topics: [
+          TOPIC_APPROVAL,
+          msgSender,
+          spender,
+        ],
+        data: value,
+      },
+    ];
+
+    return [UINT_ONE, logs];
   }
 
   /// @notice ERC20 only.
-  /// @dev Assumes `target` exist in the token bag.
-  /// TODO: check for ZERO address?
-  transfer (msgSender, target, to, value) {
-    const e = this.getERC20(target, msgSender);
+  /// transfer
+  'a9059cbb' (msgSender, target, to, value) {
+    if (value === UINT_ZERO) {
+      return [undefined, []];
+    }
 
-    if (e) {
-      const targetEntry = this.getERC20(target, to);
+    const senderKey = this._hashERC20(target, msgSender);
+    const senderBalance = this._getValue(senderKey) || UINT_ZERO;
+
+    if (senderBalance !== UINT_ZERO) {
+      const has = BigInt(senderBalance);
       const want = BigInt(value);
-      const has = BigInt(e.value);
-
-      if (want === BIGINT_ZERO) {
-        return;
-      }
 
       if (has >= want) {
-        e.value = `0x${(has - want).toString(16).padStart(64, '0')}`;
-        this._hashERC20(target, msgSender, e.value);
+        this._setValue(senderKey, has - want);
 
-        if (to === ADDRESS_ZERO) {
-          this._incrementExit(target, msgSender, want);
+        if (to === UINT_ZERO) {
+          this._addERC20Exit(target, msgSender, value);
         } else {
-          // TODO: hash exits
-          if (!targetEntry) {
-            const newEntry = {
-              address: target,
-              owner: to,
-              value: value,
-              data: UINT_ZERO,
-              isERC20: true,
-            };
-            this.addToken(newEntry);
-            this._hashERC20(target, to, newEntry.value);
-          } else {
-            targetEntry.value = `0x${(BigInt(targetEntry.value) + want).toString(16).padStart(64, '0')}`;
-            this._hashERC20(target, to, targetEntry.value);
-          }
+          const receiverKey = this._hashERC20(target, to);
+          const old = BigInt(this._getValue(receiverKey) || '0');
+          this._setValue(receiverKey, old + want);
         }
 
-        return UINT_ONE;
+        const logs = [
+          {
+            topics: [
+              TOPIC_TRANSFER,
+              msgSender,
+              to,
+            ],
+            data: value,
+          },
+        ];
+
+        return [UINT_ONE, logs];
       }
     }
+
+    return [undefined, []];
   }
 
   /// @notice ERC20, ERC721, ERC1948, ERC1949 only.
-  /// @dev Assumes `target` exist in the token bag.
-  /// TODO: check for ZERO address?
-  transferFrom (msgSender, target, from, to, tokenId) {
-    let e = this.getERC20(target, from);
+  /// transferFrom
+  '23b872dd' (msgSender, target, from, to, value) {
+    const senderKey = this._hashERC20(target, from);
+    const senderBalance = this._getValue(senderKey);
 
-    if (e) {
-      const has = BigInt(e.value);
-      const want = BigInt(tokenId);
-      const allowance = BigInt(this.getAllowance(target, from, msgSender) || '0');
+    if (senderBalance !== undefined) {
+      const allowanceKey = this._hashAllowance(target, from, msgSender);
+      const allowance = BigInt(this._getValue(allowanceKey) || '0');
+      const has = BigInt(senderBalance);
+      const want = BigInt(value);
 
       // not enough
-      if (has < want || (want > allowance && e.owner !== msgSender) || want === BIGINT_ZERO) {
-        return;
+      if (has < want || (want > allowance && from !== msgSender) || want === BIGINT_ZERO) {
+        return [undefined, []];
       }
-      if (e.owner !== msgSender) {
-        this.allowances[target + from + msgSender] = `0x${(allowance - want).toString(16).padStart(64, '0')}`;
-        this._hashAllowance(target, from, msgSender, `0x${(allowance - want).toString(16).padStart(64, '0')}`);
-      }
-      e.value = `0x${(has - want).toString(16).padStart(64, '0')}`;
-      this._hashERC20(target, from, e.value);
 
-      // now update `to`
-      const oldEntry = this.getERC20(target, to);
-      if (oldEntry) {
-        const val = BigInt(oldEntry.value) + BigInt(tokenId);
-        oldEntry.value = `0x${val.toString(16).padStart(64, '0')}`;
-        this._hashERC20(target, to, oldEntry.value);
+      if (from !== msgSender) {
+        this._setValue(allowanceKey, allowance - want);
+      }
+
+      this._setValue(senderKey, has - want);
+
+      if (to === UINT_ZERO) {
+        this._addERC20Exit(target, msgSender, value);
       } else {
-        const newEntry = {
-          address: target,
-          owner: to,
-          value: tokenId,
-          isERC20: true,
-          data: UINT_ZERO,
-        };
-        this._hashERC20(target, to, newEntry.value);
-        this.addToken(newEntry);
+        // now update `to`
+        const receiverKey = this._hashERC20(target, to);
+        const oldValue = BigInt(this._getValue(receiverKey) || '0');
+        this._setValue(receiverKey, oldValue + want);
       }
-      return UINT_ONE;
-    } else {
-      const e = this.getERC721(target, tokenId);
 
-      if (e && this._isApprovedOrOwner(msgSender, e)) {
-        delete this.allowances[target + e.owner + msgSender];
-        e.owner = to;
-        return UINT_ONE;
-      }
+      const logs = [
+        {
+          topics: [
+            TOPIC_TRANSFER,
+            from,
+            to,
+          ],
+          data: value,
+        },
+      ];
+
+      return [UINT_ONE, logs];
     }
+
+    // ERC721
+    const nftKey = this._hashERC721(target, value);
+    const owner = this._getValue(nftKey);
+
+    if (owner !== undefined) {
+      const approvalKey = this._hashApproval(target, value);
+
+      if (owner !== msgSender) {
+        const approved = this._getValue(approvalKey);
+        if (approved !== msgSender) {
+          return [undefined, []];
+        }
+      }
+
+      this._setValue(approvalKey, UINT_ZERO);
+
+      if (to === UINT_ZERO) {
+        this._addERC721Exit(target, value, msgSender);
+      }
+      this._setValue(nftKey, to);
+      const logs = [
+        {
+          topics: [
+            TOPIC_TRANSFER,
+            from,
+            to,
+            value,
+          ],
+          data: '0x',
+        },
+      ];
+      return [UINT_ONE, logs];
+    }
+
+    return [undefined, []];
+  }
+
+  storageLoad (target, key) {
+    return this._getValue(this._hashStorage(target, key)) || UINT_ZERO;
+  }
+
+  storageStore (target, key, value) {
+    this._setValue(this._hashStorage(target, key), value);
   }
 
   handleCall (msgSender, target, data) {
+    // pad up to 100 bytes
+    data = data.padEnd(200, '0');
     let offset = 0;
-    let inventory = this;
+
     const funcSig = data.substring(offset, offset += 8);
+    const arg1 = `0x${data.substring(offset, offset += 64)}`;
+    const arg2 = `0x${data.substring(offset, offset += 64)}`;
+    const arg3 = `0x${data.substring(offset, offset += 64)}`;
+    const address = target;
 
-    if (funcSig === FUNC_SIG_BALANCE_OF) {
-      const owner = `0x${data.substring(offset += 24, offset += 40)}`;
+    msgSender = '0x' + toStr(msgSender, 64);
+    target = '0x' + toStr(target, 64);
 
-      return [inventory.balanceOf(target, owner), []];
-    }
+    if (this.__proto__.hasOwnProperty(funcSig)) {
+      const [ret, logs] = this[funcSig](msgSender, target, arg1, arg2, arg3);
+      const logsLength = logs.length;
 
-    // TODO
-    // ERC721
-    // event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
-    // event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
-
-    if (funcSig === FUNC_SIG_ALLOWANCE) {
-      const owner = '0x' + data.substring(offset += 24, offset += 40);
-      const spender = '0x' + data.substring(offset += 24, offset += 40);
-
-      return [inventory.allowance(target, owner, spender), []];
-    }
-
-    if (funcSig === FUNC_SIG_APPROVE) {
-      // TODO
-      const spender = '0x' + data.substring(offset += 24, offset += 40);
-      const value = '0x' + data.substring(offset, offset += 64);
-
-      const ret = inventory.setAllowance(target, msgSender, spender, value);
-      if (ret === UINT_ONE) {
-        // 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925
-        // event Approval(address indexed, address indexed, uint256);
-        const logs = [
-          {
-            address: target,
-            topics: [
-              '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
-              '0x' + msgSender.replace('0x', '').padStart(64, '0'),
-              '0x' + spender.replace('0x', '').padStart(64, '0'),
-            ],
-            data: value,
-          },
-        ];
-
-        return [ret, logs];
+      for (let i = 0; i < logsLength; i++) {
+        logs[i].address = address;
       }
 
-      return [ret, []];
+      return [ret, logs];
     }
 
-    if (funcSig === FUNC_SIG_TRANSFER) {
-      const to = '0x' + data.substring(offset += 24, offset += 40);
-      const value = '0x' + data.substring(offset, offset += 64);
-
-      const ret = inventory.transfer(msgSender, target, to, value);
-
-      if (ret === UINT_ONE) {
-        const logs = [
-          {
-            address: target,
-            topics: [
-              '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-              '0x' + msgSender.replace('0x', '').padStart(64, '0'),
-              '0x' + to.replace('0x', '').padStart(64, '0'),
-            ],
-            data: value,
-          },
-        ];
-        return [ret, logs];
-      }
-
-      return [ret, []];
-    }
-
-    if (funcSig === FUNC_SIG_TRANSFER_FROM) {
-      const from = '0x' + data.substring(offset += 24, offset += 40);
-      const to = '0x' + data.substring(offset += 24, offset += 40);
-      const tokenId = '0x' + data.substring(offset, offset += 64);
-
-      return [inventory.transferFrom(msgSender, target, from, to, tokenId), []];
-    }
-
-    if (this.testing) {
-      if (funcSig === FUNC_SIG_OWNER_OF) {
-        const tokenId = '0x' + data.substring(offset, offset += 64);
-
-        return [inventory.ownerOf(target, tokenId), []];
-      }
-
-      if (funcSig === FUNC_SIG_GET_APPROVED) {
-        const tokenId = '0x' + data.substring(offset, offset += 64);
-
-        return [inventory.getApproved(msgSender, target, tokenId), []];
-      }
-    }
+    return [undefined, []];
   }
 };

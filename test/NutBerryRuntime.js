@@ -21,7 +21,6 @@ describe('NutBerryRuntime', function () {
   it('should fail with empty hofmann struct', async () => {
     const runtime = new NutBerryRuntime();
     const customEnvironment = new Inventory();
-    customEnvironment.testing = true;
     const data = Utils.toUint8Array(testContract.functions.test.encode(
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]
     ));
@@ -34,14 +33,11 @@ describe('NutBerryRuntime', function () {
     const runtime = new NutBerryRuntime();
     const value = '0x00000000000000000000000000000000000000000000000000000000000000ff';
     let customEnvironment = new Inventory();
-    customEnvironment.testing = true;
     customEnvironment.addToken(
       {
         address: TOKEN,
         owner: ALICE,
         value: value,
-        isERC20: true,
-        data: '0x0000000000000000000000000000000000000000000000000000000000000000',
       }
     );
     customEnvironment.addToken(
@@ -50,11 +46,16 @@ describe('NutBerryRuntime', function () {
         // the contract
         owner: '0x0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6',
         value: value,
-        isERC20: true,
-        data: '0x0000000000000000000000000000000000000000000000000000000000000000',
       },
     );
-    customEnvironment.addAllowance(TOKEN, ALICE, CONTRACT_STR, '0xfa');
+    // approve
+    customEnvironment.handleCall(
+      ALICE,
+      TOKEN,
+      '095ea7b3' +
+      '0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6' +
+      '00000000000000000000000000000000000000000000000000000000000000fa'
+    );
 
     const copy = customEnvironment.clone();
     const data = Utils.toUint8Array(testContract.functions.testERC20.encode(
@@ -63,23 +64,19 @@ describe('NutBerryRuntime', function () {
     const state = await runtime.run({ address: CONTRACT, origin: CONTRACT, code, data, customEnvironment });
 
     assert.equal(state.opName, 'STOP', 'should STOP');
-    // value - allowance + value from contract
-    // (0xff - 0xfa + 0xff - 1)
-    let tmp = copy.getERC20(TOKEN, ALICE);
-    tmp.value = tmp.value.replace('00ff', '0103');
-    copy.setAllowance(
-      TOKEN, ALICE, CONTRACT_STR, '0x0000000000000000000000000000000000000000000000000000000000000000'
-    );
 
-    tmp = copy.getERC20(TOKEN, '0x0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6');
-    tmp.value = tmp.value.replace('ff', '00');
+    copy.storage['0x1d4aab2b372f685fa1501b8804177f266ee4c99a9494cb9fab2104280f88eac4'] =
+      '0x00000000000000000000000000000000000000000000000000000000000000fe';
+    copy.storage['0xd8fd6a673ff825e021ff13b97d5034ed538d352adbef52622a488fde319e8187'] =
+      '0x0000000000000000000000000000000000000000000000000000000000000000';
+    copy.storage['0xa7fc4f9c24dc079d7451e0ae638eec1666247511d29df863809b9a0dc9d0d335'] =
+      '0x0000000000000000000000000000000000000000000000000000000000000005';
 
     copy.addToken(
       {
         address: TOKEN,
         owner: BOB,
         value: '0x00000000000000000000000000000000000000000000000000000000000000fa',
-        isERC20: true,
       }
     );
     copy.addToken(
@@ -87,7 +84,6 @@ describe('NutBerryRuntime', function () {
         address: TOKEN,
         owner: '0x0f572e5295c57f15886f9b263e2f6d2d6c7b5ec5',
         value: '0x0000000000000000000000000000000000000000000000000000000000000001',
-        isERC20: true,
       }
     );
 
@@ -100,15 +96,12 @@ describe('NutBerryRuntime', function () {
     const runtime = new NutBerryRuntime();
     const value = '0x00000000000000000000000000000000000000000000000000000000000000ff';
     let customEnvironment = new Inventory();
-    customEnvironment.testing = true;
 
     customEnvironment.addToken(
       {
         address: TOKEN,
         owner: ALICE,
         value: value,
-        isERC20: true,
-        data: '0x0000000000000000000000000000000000000000000000000000000000000000',
       }
     );
     customEnvironment.addToken(
@@ -117,8 +110,6 @@ describe('NutBerryRuntime', function () {
         // the contract
         owner: '0x0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6',
         value: value,
-        isERC20: true,
-        data: '0x0000000000000000000000000000000000000000000000000000000000000000',
       }
     );
     const data = Utils.toUint8Array(testContract.functions.testERC20.encode(
@@ -134,7 +125,6 @@ describe('NutBerryRuntime', function () {
     const runtime = new NutBerryRuntime();
     const tokenId = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const customEnvironment = new Inventory();
-    customEnvironment.testing = true;
 
     customEnvironment.addToken(
       {
@@ -144,8 +134,15 @@ describe('NutBerryRuntime', function () {
         isERC721: true,
       }
     );
-    const copy = customEnvironment.toJSON();
-    customEnvironment.addAllowance(TOKEN, ALICE, CONTRACT_STR, '0x01');
+    const copy = customEnvironment.clone();
+    copy.storageKeys = {};
+    customEnvironment.handleCall(
+      ALICE,
+      TOKEN,
+      '095ea7b3' +
+      '0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6' +
+      '0000000000000000000000000000000000000000000000000000000000000001'
+    );
 
     const data = Utils.toUint8Array(testContract.functions.testERC721.encode(
       [TOKEN, ALICE, BOB, tokenId]
@@ -153,7 +150,13 @@ describe('NutBerryRuntime', function () {
     const state = await runtime.run({ address: CONTRACT, origin: CONTRACT, code, data, customEnvironment });
 
     assert.equal(state.opName, 'STOP', 'should STOP');
-    copy.bag[0].owner = BOB;
+    // owner = BOB
+    copy.storage['0xfa6f0abc27d7a5cfc6bf5858857bfc1aa6d1c5de1c988524dd1f24a392e86b7a'] =
+      '0x0000000000000000000000002222222222222222222222222222222222222222';
+    // set approval for this tokenId to zero
+    copy.storage['0xb37d6e072d0d9a8f7f24d340ae8e09481f884c19e7c78b773ff8a02695a26dc8'] =
+      '0x0000000000000000000000000000000000000000000000000000000000000000';
+    state.customEnvironment.storageKeys = {};
     assert.deepEqual(state.customEnvironment.toJSON(), copy, 'hofmann struct should be correct');
   });
 });

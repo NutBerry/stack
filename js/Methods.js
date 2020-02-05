@@ -10,15 +10,15 @@ module.exports = class Methods {
   }
 
   static 'debug_submitSolution' (obj, bridge) {
-    return bridge.submitSolution(obj.params[0]);
+    return bridge.submitSolution(BigInt(obj.params[0]));
   }
 
   static 'debug_finalizeSolution' (obj, bridge) {
-    return bridge.finalizeSolution(obj.params[0]);
+    return bridge.finalizeSolution(BigInt(obj.params[0]));
   }
 
   static 'debug_directReplay' (obj, bridge) {
-    return bridge.directReplay(obj.params[0]);
+    return bridge.directReplay(BigInt(obj.params[0]));
   }
 
   static 'debug_kill' () {
@@ -52,7 +52,7 @@ module.exports = class Methods {
   }
 
   static async 'eth_blockNumber' (obj, bridge) {
-    return `0x${bridge.currentBlock.number.toString(16)}`;
+    return `0x${bridge.pendingBlock.number.toString(16)}`;
   }
 
   static async 'eth_getBlockByNumber' (obj, bridge) {
@@ -104,7 +104,7 @@ module.exports = class Methods {
 
   static async 'eth_getTransactionReceipt' (obj, bridge) {
     const txHash = obj.params[0];
-    const { block, tx, txIndex } = bridge.currentBlock.getBlockOfTransaction(txHash);
+    const { block, tx, txIndex } = bridge.pendingBlock.getBlockOfTransaction(txHash);
 
     if (!tx) {
       return null;
@@ -137,7 +137,6 @@ module.exports = class Methods {
     }
 
     // TODO: proper receipts
-    const status = block === bridge.currentBlock ? '0x1' : '0x2';
     return {
       transactionHash: txHash,
       transactionIndex,
@@ -150,7 +149,7 @@ module.exports = class Methods {
       contractAddress: null,
       logs: logs,
       logsBloom: ZERO_LOGS_BLOOM,
-      status,
+      status: tx.status,
     };
   }
 
@@ -202,8 +201,8 @@ module.exports = class Methods {
     const filterAddress = eventFilter.address ? eventFilter.address.toLowerCase() : null;
     const filterTopics = eventFilter.topics || [];
     const res = [];
-    const end = BigInt(eventFilter.toBlock || bridge.currentBlock.number);
-    let start = BigInt(eventFilter.fromBlock || bridge.currentBlock.number);
+    const end = BigInt(eventFilter.toBlock || bridge.pendingBlock.number);
+    let start = BigInt(eventFilter.fromBlock || bridge.pendingBlock.number);
 
     for (; start <= end; start++) {
       const block = await bridge.getBlockByNumber(start, false);

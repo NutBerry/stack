@@ -12,6 +12,7 @@ describe('GatedComputing', async function () {
   const ALICE = '0x1111111111111111111111111111111111111111';
   const BOB = '0x2222222222222222222222222222222222222222';
   const ACCOUNT_BALANCE = '0x00000000000000000000000000000000000000000000000000000000000000ff';
+  const NFT_ID = 1;
   const gasLimit = '0x' + (8000000).toString(16);
   const testContractInterface = new ethers.utils.Interface(TestContract.abi);
   const testGatedInterface = new ethers.utils.Interface(TestGatedComputing.abi);
@@ -121,8 +122,6 @@ describe('GatedComputing', async function () {
     'NUMBER',
     'DIFFICULTY',
     'GASLIMIT',
-    'SLOAD',
-    'SSTORE',
     'CREATE',
     'CALLCODE',
     'DELEGATECALL',
@@ -197,10 +196,34 @@ describe('GatedComputing', async function () {
   );
 
   it('TestContract.test()', async () => {
+    let tx = await(await testGatedContract.addToken(
+      TOKEN,
+      ALICE,
+      ACCOUNT_BALANCE
+    )).wait();
+    tx = await(await testGatedContract.addToken(
+      TOKEN,
+      BOB,
+      ACCOUNT_BALANCE
+    )).wait();
+    tx = await(await testGatedContract.addAllowance(
+      TOKEN,
+      ALICE,
+      testGatedContract.address,
+      '0xfa'
+    )).wait();
+    tx = await(await testGatedContract.addAllowance(
+      TOKEN,
+      BOB,
+      testGatedContract.address,
+      '0xff'
+    )).wait();
+
     const data = testContractInterface.functions.test.encode(
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]
     );
-    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+
+    tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
 
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
@@ -278,4 +301,62 @@ describe('GatedComputing', async function () {
     // success ?
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
   });
+
+  [
+    {
+      name: 'balanceOf',
+      data: testContractInterface.functions.balanceOf.encode([TOKEN, ALICE]),
+      result: ACCOUNT_BALANCE,
+    },
+    {
+      name: 'allowance',
+      data: testContractInterface.functions.allowance.encode([TOKEN, ALICE, BOB]),
+      result: '0x00000000000000000000000000000000000000000000000000000000000000fa',
+    },
+    {
+      name: 'ownerOf',
+      data: testContractInterface.functions.ownerOf.encode([TOKEN, NFT_ID]),
+      result: '0x' + ALICE.replace('0x', '').padStart(64, '0'),
+    },
+    {
+      name: 'getApproved',
+      data: testContractInterface.functions.getApproved.encode([TOKEN, NFT_ID]),
+      result: '0x' + BOB.replace('0x', '').padStart(64, '0'),
+    },
+  ].forEach(
+    ({ name, data, result }) => {
+      it(`TestContract.${name}`, async () => {
+        let tx = await(await testGatedContract.addToken(
+          TOKEN,
+          ALICE,
+          ACCOUNT_BALANCE
+        )).wait();
+        tx = await(await testGatedContract.addToken(
+          TOKEN,
+          testGatedContract.address,
+          ACCOUNT_BALANCE
+        )).wait();
+        tx = await(await testGatedContract.addAllowance(
+          TOKEN,
+          ALICE,
+          BOB,
+          '0xfa'
+        )).wait();
+        tx = await(await testGatedContract.addERC721(
+          TOKEN,
+          ALICE,
+          NFT_ID,
+        )).wait();
+        tx = await(await testGatedContract.addApproval(
+          TOKEN,
+          BOB,
+          NFT_ID,
+        )).wait();
+
+        tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+        assert.equal(tx.events[0].topics[0], result);
+        assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
+      });
+    }
+  );
 });

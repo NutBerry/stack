@@ -1,12 +1,13 @@
 pragma solidity ^0.5.2;
 
+// TODO
+// once we use state-roots, investigate if decoupling the temporay
+// storage mechanism into another contract makes sense.
 contract InventoryStorage {
-  function _getStorage (bytes32 target) internal view returns (uint256) {
-    uint256 v;
+  function _getStorage (bytes32 target) internal view returns (uint256 v) {
     assembly {
       v := sload(target)
     }
-    return v;
   }
 
   function _setStorage (bytes32 target, uint256 value) internal {
@@ -22,7 +23,7 @@ contract InventoryStorage {
     }
   }
 
-  function _hashExit (address target, address owner) internal pure returns (bytes32 ret) {
+  function _hashERC20Exit (address target, address owner) internal pure returns (bytes32 ret) {
     assembly {
       mstore(0, or(shl(64, owner), shl(224, 0x0001)))
       mstore(24, shl(96, target))
@@ -30,9 +31,11 @@ contract InventoryStorage {
     }
   }
 
-  function _hashNonce (address target) internal pure returns (bytes32 ret) {
+  function _hashERC721Exit (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
     assembly {
-      ret := target
+      mstore(0, or(shl(64, target), shl(224, 0x0001)))
+      mstore(24, tokenId)
+      ret := keccak256(0, 56)
     }
   }
 
@@ -44,64 +47,50 @@ contract InventoryStorage {
     }
   }
 
+  function _hashERC721 (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
+    assembly {
+      mstore(0, or(shl(64, target), shl(224, 0x0005)))
+      mstore(24, tokenId)
+      ret := keccak256(0, 56)
+    }
+  }
+
   function _hashAllowance (address target, address owner, address spender) internal pure returns (bytes32 ret) {
     assembly {
       mstore(0, or(shl(64, target), shl(224, 0x0003)))
       mstore(24, shl(96, owner))
       // we overwrite parts of the freeMemPtr, but this is not a problem because the
-      // memPtr would never be that high and we overwrite only 12 bytes :)
+      // memPtr would never be that high and we overwrite only 12 bytes (zeros) :)
       mstore(44, shl(96, spender))
       ret := keccak256(0, 64)
     }
   }
 
-  function incrementExit (address target, address owner, uint256 value) internal {
-    _incrementStorage(_hashExit(target, owner), value);
-  }
-
-  function getAllowance (address target, address owner, address spender) internal view returns (uint256) {
-    return _getStorage(_hashAllowance(target, owner, spender));
-  }
-
-  function setAllowance (address target, address owner, address spender, uint256 value) internal {
-    _setStorage(_hashAllowance(target, owner, spender), value);
-  }
-
-  function getERC20 (address target, address owner) internal view returns (uint256) {
-    return _getStorage(_hashERC20(target, owner));
-  }
-
-  function setERC20 (address target, address owner, uint256 value) internal {
-    _setStorage(_hashERC20(target, owner), value);
-  }
-
-  function getExitValue (address target, address owner) public view returns (uint256 ret) {
-    bytes32 key = _hashExit(target, owner);
+  function _hashApproval (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
     assembly {
-      ret := sload(key)
+      mstore(0, or(shl(64, target), shl(224, 0x0004)))
+      mstore(24, tokenId)
+      ret := keccak256(0, 56)
     }
   }
 
-  function setExitValue (address target, address owner, uint256 value) internal {
-    bytes32 key = _hashExit(target, owner);
-    assembly {
-      sstore(key, value)
-    }
+  function _incrementExit (address target, address owner, uint256 value) internal {
+    _incrementStorage(_hashERC20Exit(target, owner), value);
   }
 
-  function getExit (address target, address owner) internal view returns (uint256) {
-    return _getStorage(_hashExit(target, owner));
+  function getExit (address target, address owner) public view returns (uint256) {
+    return _getStorage(_hashERC20Exit(target, owner));
   }
 
-  function setExit (address target, address owner, uint256 value) internal {
-    _setStorage(_hashExit(target, owner), value);
+  function _setExit (address target, address owner, uint256 value) internal {
+    _setStorage(_hashERC20Exit(target, owner), value);
   }
 
-  function getNonce (address target) internal view returns (uint256) {
-    return _getStorage(_hashNonce(target));
+  function getERC721Exit (address target, uint256 tokenId) public view returns (address) {
+    return address(_getStorage(_hashERC721Exit(target, tokenId)));
   }
 
-  function setNonce (address target, uint256 value) internal {
-    _setStorage(_hashNonce(target), value);
+  function _setERC721Exit (address target, address owner, uint256 tokenId) internal {
+    _setStorage(_hashERC721Exit(target, tokenId), uint256(owner));
   }
 }

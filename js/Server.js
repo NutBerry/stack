@@ -90,7 +90,7 @@ module.exports = class Server {
         console.log(e, e.stack);
         body.error = {
           code: -32000,
-          message: e.toString(),
+          message: (e.message || e).toString(),
         };
         resp.end(JSON.stringify(body));
       }

@@ -9,9 +9,7 @@ contract Inventory is InventoryStorage {
     address target,
     address owner
   ) internal view returns (uint256) {
-    uint256 val = getERC20(target, owner);
-
-    return val;
+    return _getStorage(_hashERC20(target, owner));
   }
 
   function _allowance (
@@ -19,9 +17,31 @@ contract Inventory is InventoryStorage {
     address owner,
     address spender
   ) internal view returns (uint256) {
-    uint256 val = getAllowance(target, owner, spender);
+    return _getStorage(_hashAllowance(target, owner, spender));
+  }
 
-    return val;
+  function _approve (
+    address from,
+    address to,
+    address spender,
+    uint256 value
+  ) internal returns (uint256) {
+    bytes32 nftKey = _hashERC721(to, value);
+    uint256 tokenOwner = _getStorage(nftKey);
+
+    if (tokenOwner != 0) {
+      // ERC721
+      if (uint256(from) != tokenOwner) {
+        return 0;
+      }
+      bytes32 key = _hashApproval(to, value);
+      _setStorage(key, uint256(spender));
+    } else {
+      // ERC20
+      _setStorage(_hashAllowance(to, from, spender), value);
+    }
+
+    return 1;
   }
 
   function _transfer (
@@ -29,30 +49,26 @@ contract Inventory is InventoryStorage {
     address target,
     address to,
     uint256 value
-  ) internal returns (bool) {
-    //if (isERC20) {
-    if (true) {
-      uint256 senderValue = getERC20(target, msgSender);
-      // not enough
-      if (senderValue < value || value == 0) {
-        return false;
-      }
-
-      senderValue -= value;
-      setERC20(target, msgSender, senderValue);
-
-      if (to == address(0)) {
-        incrementExit(target, msgSender, value);
-      } else {
-        // now update `to`
-        uint256 receiverValue = getERC20(target, to) + value;
-        setERC20(target, to, receiverValue);
-      }
-
-      return true;
+  ) internal returns (uint256) {
+    bytes32 senderKey = _hashERC20(target, msgSender);
+    uint256 senderValue = _getStorage(senderKey);
+    // not enough
+    if (senderValue < value || value == 0) {
+      return 0;
     }
 
-    return false;
+    _setStorage(senderKey, senderValue - value);
+
+    if (to == address(0)) {
+      _incrementExit(target, msgSender, value);
+    } else {
+      // now update `to`
+      bytes32 receiverKey = _hashERC20(target, to);
+      uint256 receiverValue = _getStorage(receiverKey) + value;
+      _setStorage(receiverKey, receiverValue);
+    }
+
+    return 1;
   }
 
   function _transferFrom (
@@ -61,31 +77,54 @@ contract Inventory is InventoryStorage {
     address from,
     address to,
     uint256 value
-  ) internal returns (bool) {
+  ) internal returns (uint256) {
+    bytes32 nftKey = _hashERC721(target, value);
+    uint256 tokenOwner = _getStorage(nftKey);
 
-    //if (isERC20) {
-    if (true) {
-      uint256 allowed = getAllowance(target, from, msgSender);
-      uint256 senderValue = getERC20(target, from);
+    if (tokenOwner == 0) {
+      // we assume ERC20
+      bytes32 senderKey = _hashERC20(target, from);
+      bytes32 allowanceKey = _hashAllowance(target, from, msgSender);
+      uint256 allowed = _getStorage(allowanceKey);
+      uint256 senderValue = _getStorage(senderKey);
 
-      // not enough
+      // not enough balance or not approved ?
       if (senderValue < value || (value > allowed && from != msgSender) || value == 0) {
-        return false;
+        return 0;
       }
 
       if (from != msgSender) {
-        setAllowance(target, from, msgSender, allowed - value);
+        _setStorage(allowanceKey, allowed - value);
       }
-      senderValue -= value;
-      setERC20(target, from, senderValue);
+
+      _setStorage(senderKey, senderValue - value);
 
       // now update `to`
-      uint256 receiverValue = getERC20(target, to) + value;
-      setERC20(target, to, receiverValue);
+      bytes32 receiverKey = _hashERC20(target, to);
+      uint256 receiverValue = _getStorage(receiverKey) + value;
+      _setStorage(receiverKey, receiverValue);
 
-      return true;
+      return 1;
     }
 
-    return false;
+    // ERC721
+    {
+      bytes32 apr = _hashApproval(target, value);
+      if (tokenOwner != uint256(msgSender)) {
+        uint256 approved = _getStorage(apr);
+        if (approved != uint256(msgSender)) {
+          return 0;
+        }
+      }
+      _setStorage(apr, 0);
+
+      _setStorage(nftKey, uint256(to));
+      if (to == address(0)) {
+        _setERC721Exit(target, from, value);
+      }
+      return 1;
+    }
+
+    return 0;
   }
 }

@@ -11,6 +11,7 @@ const privKey = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501
 const rpcUrl = `http://localhost:${process.env.RPC_PORT}`;
 const rootProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
 const rootWallet = new ethers.Wallet(privKey, rootProvider);
+const procs = [];
 
 (async function () {
   let logFile = process.stdout;
@@ -18,10 +19,28 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
     logFile = fs.createWriteStream(process.env.LOG_FILE);
   }
 
+  function cleanup () {
+    while (procs.length) {
+      const proc = procs.pop();
+      if (!proc.killed) {
+        proc.kill();
+      }
+    }
+  }
+
   function onException (e) {
     logFile.write(`${e.stack || e}\n`);
+    cleanup();
     process.exit(1);
   }
+
+  function onSigKill () {
+    cleanup();
+    process.exit();
+  }
+
+  process.on('SIGINT', onSigKill);
+  process.on('SIGTERM', onSigKill);
 
   const { contract } = await deployBridge(rootWallet, {}, logFile);
   process.on('uncaughtException', onException);
@@ -64,6 +83,8 @@ const rootWallet = new ethers.Wallet(privKey, rootProvider);
           startNode();
         }
       );
+
+      procs.push(proc);
     }
 
     startNode();

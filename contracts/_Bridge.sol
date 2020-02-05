@@ -2,7 +2,12 @@ pragma solidity ^0.5.2;
 
 import './LEVM.sol';
 
-// TODO: investigate possible re-entrancy attacks
+// TODO
+// - investigate possible re-entrancy attacks
+// - use state-roots for per-account basis?
+//   mapping(address => bytes32) stateRoots;
+// - Define error codes for those silent revert(0, 0)'s
+// - Improve storage patterns
 contract _Bridge is LEVM {
   uint16 public constant VERSION = 2;
   uint16 public constant MAX_BLOCK_SIZE = 16192;
@@ -11,30 +16,25 @@ contract _Bridge is LEVM {
   uint16 public constant INSPECTION_PERIOD = 60;
   // 1 ether
   uint256 public constant BOND_AMOUNT = 1000000000000000000;
-  // TODO
-  // - use state-roots for per-account basis?
-  //   mapping(address => bytes32) stateRoots;
-  // - Define error codes for those silent revert(0, 0)'s
+
   // convenience for clients
   uint256 public createdAtBlock;
   // highest finalized block
-  uint256 public currentBlock;
+  uint256 public finalizedHeight;
   // highest not finalized block
-  uint256 highestPendingBlock;
+  uint256 pendingHeight;
   // tracks the block offset in chunked disputes
   uint256 disputeOffset;
-  // blockHash > block proposer
-  mapping (bytes32 => address) blocks;
-  // blockHash > solutionHash
-  mapping (bytes32 => bytes32) blockSolutions;
-
-  // TODO: get rid of these storage patterns
-  // blockHash > timeOfSubmission | in blocks
-  mapping (bytes32 => uint256) timeOfSubmission;
+  // block number > keccak256(blockhash, block proposer)
+  mapping (uint256 => bytes32) blocks;
+  // block number > solutionHash
+  mapping (uint256 => bytes32) blockSolutions;
+  // block number > timeOfSubmission | in blocks
+  mapping (uint256 => uint256) timeOfSubmission;
 
   event Deposit(address token, address owner, uint256 value);
   event BlockBeacon();
-  event NewSolution(bytes32 blockHash, bytes32 solutionHash);
+  event NewSolution(uint256 blockNumber, bytes32 solutionHash);
 
   function _blockHash (uint256 nonce) internal pure returns (bytes32 blockHash) {
     assembly {
@@ -53,11 +53,14 @@ contract _Bridge is LEVM {
     }
   }
 
-  /// @dev Checks if `blockHash` is the current block that needs finalization.
-  function _checkBlock (bytes32 blockHash) internal {
-    if (blocks[blockHash] == address(0)) {
-      revert();
-    }
+  /// @dev Callback from the Verifier once a dispute is resolved
+  function _resolveBlock (uint256 blockNumber) internal {
+    finalizedHeight = blockNumber;
+
+    delete blocks[blockNumber];
+    delete blockSolutions[blockNumber];
+    delete timeOfSubmission[blockNumber];
+    disputeOffset = 0;
   }
 
   /// @dev Internal function to check if caller satisfies common conditions.
@@ -73,37 +76,5 @@ contract _Bridge is LEVM {
         revert(0, 0)
       }
     }
-  }
-
-  /// @dev Internal function to check if caller satisfies common conditions.
-  function _checkBond () internal {
-    if (msg.value != BOND_AMOUNT) {
-      revert();
-    }
-  }
-
-  /// @dev Callback from the Verifier once a dispute is resolved
-  function _resolveBlock (bytes32 blockHash, address payable solver) internal {
-    if (blocks[blockHash] == address(0)) {
-      revert();
-    }
-
-    currentBlock = currentBlock + 1;
-
-    address payable blockProducer = address(bytes20(blocks[blockHash]));
-
-    delete blocks[blockHash];
-    delete blockSolutions[blockHash];
-    delete timeOfSubmission[blockHash];
-    disputeOffset = 0;
-
-    // we might not have a bond if it's a special block
-    if (address(this).balance >= BOND_AMOUNT) {
-      solver.transfer(BOND_AMOUNT / 2);
-      blockProducer.transfer(BOND_AMOUNT / 2);
-    }
-    // TODO
-    // block producer lock period
-    // payout to finalizer - leftover bond (gas refunder) goes to block producer
   }
 }
