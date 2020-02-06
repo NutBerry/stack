@@ -762,8 +762,11 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Invalid Block, solution too big & dispute', async () => {
-    const raw = '0123456789abcdef';
+  describe('Block w/ invalid signature, solution too big & dispute', async () => {
+    const raw =
+      'fdffffd68ef2f339154b2dbcc8ed12263481688adc9b7900ec467a1a9615' +
+      '46ff24f07129cf95016048b7cebcaaa6c7c31d1e8d06510d9c1748c328de' +
+      '28ba314353d9bc1f0c50b7e6233e589204b49b9d53fb966756ae000000';
     let solution;
     let solutionHash;
     let blockHash;

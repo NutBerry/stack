@@ -262,12 +262,10 @@ contract LEVM is Inventory {
       mstore(add(memPtr, 32), byte(0, calldataload(offset)))
       offset := add(offset, 1)
       // ecrecover
-      let success := staticcall(gas(), 0x1, memPtr, 128, 0, 32)
+      let success := staticcall(gas(), 0x1, memPtr, 128, params, 32)
       if iszero(success) {
-        mstore(0, 0)
+        mstore(params, 0)
       }
-      let from := mload(0)
-      mstore(params, from)
     }
 
     return offset;
