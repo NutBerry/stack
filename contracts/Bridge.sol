@@ -64,8 +64,8 @@ contract Bridge is _Bridge {
       val = tokenId;
       _setERC721Exit(token, address(0), val);
     } else {
-      val = getExit(token, msg.sender);
-      _setExit(token, msg.sender, 0);
+      val = getERC20Exit(token, msg.sender);
+      _setERC20Exit(token, msg.sender, 0);
     }
 
     assembly {

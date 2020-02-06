@@ -216,9 +216,15 @@ contract GatedComputing {
       let codeEnd := ptr
       // TODO: check boundaries
       let count := mload(0)
+      // size of the jump index
+      let tmp := add(32, mul(count, 4))
       // we add size: (count * instructions) + 7 + 32 (padding)
       let plusSize := add(mul(count, 15), 39)
       if gt(plusSize, 4000) {
+        revert(0, 0)
+      }
+      // too big
+      if gt( add(tmp, plusSize), 8000) {
         revert(0, 0)
       }
       ptr := sub(8192, plusSize)

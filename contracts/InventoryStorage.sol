@@ -78,11 +78,11 @@ contract InventoryStorage {
     _incrementStorage(_hashERC20Exit(target, owner), value);
   }
 
-  function getExit (address target, address owner) public view returns (uint256) {
+  function getERC20Exit (address target, address owner) public view returns (uint256) {
     return _getStorage(_hashERC20Exit(target, owner));
   }
 
-  function _setExit (address target, address owner, uint256 value) internal {
+  function _setERC20Exit (address target, address owner, uint256 value) internal {
     _setStorage(_hashERC20Exit(target, owner), value);
   }
 
