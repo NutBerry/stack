@@ -32,7 +32,7 @@ describe('LEVM', async function () {
       const encoded = Utils.encodeTx(parsed);
       let raw = encoded.replace('0x', '');
       if (invalidateSig) {
-        raw = raw.slice(-6) + 'fcacac';
+        raw = raw.substring(0, raw.length - 6) + ''.padStart(6, '0');
       }
       const tx = await (await wallet.sendTransaction(
         {
@@ -43,7 +43,7 @@ describe('LEVM', async function () {
       )).wait();
 
       if (invalidateSig) {
-        // ignore
+        assert.equal(tx.logs.length, 0);
         return;
       }
 
