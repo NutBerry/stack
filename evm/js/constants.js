@@ -78,6 +78,8 @@ module.exports = {
   NUMBER: '43',
   DIFFICULTY: '44',
   GASLIMIT: '45',
+  CHAINID: '46',
+  SELFBALANCE: '47',
 
   // Stack, Memory, Storage and Flow Operations
   POP: '50',

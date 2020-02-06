@@ -204,7 +204,7 @@ contract GatedComputing {
           }
           default {
             let op := 0xfe
-            if and(shl(opcode, 1), 0x640a0000000000000000001fffffffffffffffff0fcf00006bfd00013fff0fff) {
+            if and(shl(opcode, 1), 0x640a0000000000000000001fffffffffffffffff0fff00006bfd00013fff0fff) {
               op := opcode
             }
             mstore8(ptr, op)

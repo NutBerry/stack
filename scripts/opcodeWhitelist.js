@@ -46,8 +46,8 @@ const allowed = [
   Constants.MLOAD,
   Constants.MSTORE,
   Constants.MSTORE8,
-  //Constants.SLOAD,
-  //Constants.SSTORE,
+  Constants.SLOAD,
+  Constants.SSTORE,
   Constants.JUMP,
   Constants.JUMPI,
   Constants.PC,
@@ -148,10 +148,12 @@ Object.keys(Constants).forEach(
     reverse[Constants[key]] = key;
   }
 );
+console.log('disallowed:');
 for (let i = 0; i <= 0xff; i++) {
   const enabled = allowedVal & (BigInt(1) << BigInt(i));
-  const rev = reverse[i.toString(16).padStart('0', 2)];
+  const hex = i.toString(16).padStart('0', 2);
+  const rev = reverse[hex];
   if (!enabled && rev) {
-    console.log(`disallowed: ${i} ${rev}`);
+    console.log(`* 0x${hex} ${rev}`);
   }
 }

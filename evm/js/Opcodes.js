@@ -60,6 +60,8 @@ module.exports = {
   0x43: ['NUMBER', 2, 0, 1],
   0x44: ['DIFFICULTY', 2, 0, 1],
   0x45: ['GASLIMIT', 2, 0, 1],
+  0x46: ['CHAINID', 2, 0, 1],
+  0x47: ['SELFBALANCE', 5, 0, 1],
 
   // 0x50 range - 'storage' and execution
   0x50: ['POP', 2, 1, 0],
