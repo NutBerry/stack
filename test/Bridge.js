@@ -762,11 +762,18 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Block w/ invalid signature, solution too big & dispute', async () => {
+  describe('Block w/ invalid signature & dup. transactions, solution too big & dispute', async () => {
     const raw =
       'fdffffd68ef2f339154b2dbcc8ed12263481688adc9b7900ec467a1a9615' +
       '46ff24f07129cf95016048b7cebcaaa6c7c31d1e8d06510d9c1748c328de' +
-      '28ba314353d9bc1f0c50b7e6233e589204b49b9d53fb966756ae000000';
+      '28ba314353d9bc1f0c50b7e6233e589204b49b9d53fb966756ae000000' +
+      '00f8373282bebae9f128b9b3e16816a76a5865c03900e2e4712e409fe6de' +
+      '32d86f84897903011fae40f6d05daa45c955f27c5c40ca362cbbfae42595' +
+      '2fc51661ec2beebea4134d1dff1505f7e570aa614579918e10851c' +
+      '00f8373282bebae9f128b9b3e16816a76a5865c03900e2e4712e409fe6de' +
+      '32d86f84897903011fae40f6d05daa45c955f27c5c40ca362cbbfae42595' +
+      '2fc51661ec2beebea4134d1dff1505f7e570aa614579918e10851c';
+
     let solution;
     let solutionHash;
     let blockHash;
@@ -817,14 +824,16 @@ describe('Bridge/RPC', async function () {
     });
 
     it('dispute', async () => {
-      const tx = await (
-        await rootWalletAlice.sendTransaction(
-          {
-            to: bridge.address,
-            data: '0xf240f7c3' + raw,
-          }
-        )
-      ).wait();
+      for (let i = 0; i < 3; i++) {
+        const tx = await (
+          await rootWalletAlice.sendTransaction(
+            {
+              to: bridge.address,
+              data: '0xf240f7c3' + raw,
+            }
+          )
+        ).wait();
+      }
     });
   });
 
