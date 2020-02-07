@@ -65,6 +65,7 @@ In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows si
 
 The `nutberry-node` (`js/bin.js`) supports the following environment variables:
 
+```
 * Option: BRIDGE_ADDRESS
   Type: String
   Required: true
@@ -97,6 +98,7 @@ The `nutberry-node` (`js/bin.js`) supports the following environment variables:
   Type: Number
   Default: 0
   For development purposes, simulates a rogue node.
+```
 
 # Documentation
 
