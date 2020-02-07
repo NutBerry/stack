@@ -81,6 +81,7 @@ module.exports = class Bridge {
   async init () {
     this.VERSION = await this.contract.VERSION();
     this.MAX_BLOCK_SIZE = await this.contract.MAX_BLOCK_SIZE();
+    this.MAX_SOLUTION_SIZE = await this.contract.MAX_SOLUTION_SIZE();
     this.INSPECTION_PERIOD = await this.contract.INSPECTION_PERIOD();
     this.BOND_AMOUNT = await this.contract.BOND_AMOUNT();
 
@@ -93,6 +94,7 @@ module.exports = class Bridge {
         bridge: this.contract.address,
         bridgeVersion: this.VERSION,
         MAX_BLOCK_SIZE: this.MAX_BLOCK_SIZE,
+        MAX_SOLUTION_SIZE: this.MAX_SOLUTION_SIZE,
         INSPECTION_PERIOD: this.INSPECTION_PERIOD,
         BOND_AMOUNT: this.BOND_AMOUNT.toString(),
         wallet: this.signer.address,
@@ -449,10 +451,12 @@ module.exports = class Bridge {
 
   async _processDispute (block) {
     const TAG = 'Bridge.dispute';
+    const rootBlock = await this.rootProvider.getBlock('latest');
+    const gasLimit = rootBlock.gasLimit.mul(10).div(11);
     const txData = {
       to: this.contract.address,
       data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
-      gasLimit: 8000000,
+      gasLimit,
     };
     const cBlock = await this.contract.finalizedHeight();
     if (cBlock.gte(block.number.toString())) {

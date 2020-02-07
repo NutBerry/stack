@@ -19,13 +19,13 @@ contract LEVM is Inventory {
   uint256 constant internal FUNC_SIG_GET_APPROVED = 0x1812fc;
 
   // TODO
-  function _from () internal returns (address v) {
+  function _loadFrom () internal returns (address v) {
     assembly {
       v := sload(0xf0)
     }
   }
 
-  function _to () internal returns (address v) {
+  function _loadTo () internal returns (address v) {
     assembly {
       v := sload(0xf2)
     }
@@ -73,31 +73,31 @@ contract LEVM is Inventory {
     }
 
     if (functionSig == FUNC_SIG_BALANCE_OF) {
-      _returnValue(_balanceOf(_to(), address(_arg1())));
+      _returnValue(_balanceOf(_loadTo(), address(_arg1())));
     }
 
     if (functionSig == FUNC_SIG_ALLOWANCE) {
-      _returnValue(_allowance(_to(), address(_arg1()), address(_arg2())));
+      _returnValue(_allowance(_loadTo(), address(_arg1()), address(_arg2())));
     }
 
     if (functionSig == FUNC_SIG_OWNER_OF) {
-      _returnValue(_getStorage(_hashERC721(_to(), _arg1())));
+      _returnValue(_getStorage(_hashERC721(_loadTo(), _arg1())));
     }
 
     if (functionSig == FUNC_SIG_GET_APPROVED) {
-      _returnValue(_getStorage(_hashApproval(_to(), _arg1())));
+      _returnValue(_getStorage(_hashApproval(_loadTo(), _arg1())));
     }
 
     if (functionSig == FUNC_SIG_APPROVE) {
-      _revertOnFailure(_approve(_from(), _to(), address(_arg1()), _arg2()));
+      _revertOnFailure(_approve(_loadFrom(), _loadTo(), address(_arg1()), _arg2()));
     }
 
     if (functionSig == FUNC_SIG_TRANSFER) {
-      _revertOnFailure(_transfer(_from(), _to(), address(_arg1()), _arg2()));
+      _revertOnFailure(_transfer(_loadFrom(), _loadTo(), address(_arg1()), _arg2()));
     }
 
     if (functionSig == FUNC_SIG_TRANSFER_FROM) {
-      _revertOnFailure(_transferFrom(_from(), _to(), address(_arg1()), address(_arg2()), _arg3()));
+      _revertOnFailure(_transferFrom(_loadFrom(), _loadTo(), address(_arg1()), address(_arg2()), _arg3()));
     }
 
     assembly {
@@ -281,8 +281,20 @@ contract LEVM is Inventory {
     }
   }
 
+  function _checkGasLimit () internal {
+    assembly {
+      let limit := div(mul(gaslimit(), 10), 12)
+
+      if lt(gas(), limit) {
+        revert(0, 0)
+      }
+    }
+  }
+
   /// @dev Deploy a patched version of `target` and call the contract with `callData`.
   function _deployAndCall (address gated, address target, bytes memory callData) internal returns (bool) {
+    _checkGasLimit();
+
     bool success;
 
     assembly {

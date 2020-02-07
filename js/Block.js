@@ -167,10 +167,21 @@ module.exports = class Block {
       const address = Buffer.from(tx.to.replace('0x', ''), 'hex');
       const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
       const caller = origin;
+      const slotsUsedBefore = Object.keys(customEnvironment.storageKeys).length;
       const runtime = new NutBerryRuntime();
       // the maximum allowed steps the call can make
       const stepCount = 0x1fffff;
       const state = await runtime.run({ stepCount, address, origin, caller, code, data, customEnvironment });
+      const slotsUsedAfter = Object.keys(customEnvironment.storageKeys).length;
+      // key (32) + prefix (1) + value (32)
+      const solutionSize = (slotsUsedAfter - slotsUsedBefore) * 65;
+
+      // TODO
+      // This is nasty and obsolete once we use state-roots.
+      if (solutionSize > bridge.MAX_SOLUTION_SIZE) {
+        this.log('Error: hit MAX_SOLUTION_SIZE');
+        state.errno = 0xff;
+      }
 
       if (state.errno !== 0) {
         this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);

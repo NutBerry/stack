@@ -50,7 +50,7 @@ contract TestGatedComputing is LEVM {
     }
   }
 
-  function call (address target, bytes memory callData) public {
+  function callWithAddress (address target, bytes memory callData) public {
     assembly {
       // TO
       sstore(0xf0, address())
@@ -196,7 +196,7 @@ contract TestGatedComputing is LEVM {
     }
   }
 
-  function doSTATICCALL (address tgt, bytes calldata input) external {
+  function doSTATICCALL (address tgt, bytes calldata) external {
     assembly {
       calldatacopy(0, 0, calldatasize())
       let success := staticcall(gas(), tgt, 100, mload(68), 0, 32)
