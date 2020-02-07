@@ -6,24 +6,28 @@ contract LEVM is Inventory {
   // needs to be replaced with the deployed address
   address constant GATED_COMPUTING_ADDRESS = 0xabCDeF0123456789AbcdEf0123456789aBCDEF01;
 
-  uint256 constant internal FUNC_SIG_BALANCE_OF = 0x70a08231;
-  uint256 constant internal FUNC_SIG_APPROVE = 0x095ea7b3;
-  uint256 constant internal FUNC_SIG_ALLOWANCE = 0xdd62ed3e;
-  uint256 constant internal FUNC_SIG_TRANSFER = 0xa9059cbb;
-  uint256 constant internal FUNC_SIG_TRANSFER_FROM = 0x23b872dd;
-  uint256 constant internal FUNC_SIG_OWNER_OF = 0x6352211e;
-  uint256 constant internal FUNC_SIG_GET_APPROVED = 0x081812fc;
+  // note, we only use the last 3 bytes instead of 4
+  // the cut the first byte of the function sig
+  // because that's used as a overwrite-byte in
+  // GatedComputing
+  uint256 constant internal FUNC_SIG_BALANCE_OF = 0xa08231;
+  uint256 constant internal FUNC_SIG_APPROVE = 0x5ea7b3;
+  uint256 constant internal FUNC_SIG_ALLOWANCE = 0x62ed3e;
+  uint256 constant internal FUNC_SIG_TRANSFER = 0x059cbb;
+  uint256 constant internal FUNC_SIG_TRANSFER_FROM = 0xb872dd;
+  uint256 constant internal FUNC_SIG_OWNER_OF = 0x52211e;
+  uint256 constant internal FUNC_SIG_GET_APPROVED = 0x1812fc;
 
   // TODO
   function _from () internal returns (address v) {
     assembly {
-      v := sload(0xaa)
+      v := sload(0xf0)
     }
   }
 
   function _to () internal returns (address v) {
     assembly {
-      v := sload(0xbb)
+      v := sload(0xf2)
     }
   }
 
@@ -68,31 +72,31 @@ contract LEVM is Inventory {
       functionSig := shr(224, calldataload(0))
     }
 
-    if (functionSig == 0xa08231) {
+    if (functionSig == FUNC_SIG_BALANCE_OF) {
       _returnValue(_balanceOf(_to(), address(_arg1())));
     }
 
-    if (functionSig == 0x62ed3e) {
+    if (functionSig == FUNC_SIG_ALLOWANCE) {
       _returnValue(_allowance(_to(), address(_arg1()), address(_arg2())));
     }
 
-    if (functionSig == 0x52211e) {
+    if (functionSig == FUNC_SIG_OWNER_OF) {
       _returnValue(_getStorage(_hashERC721(_to(), _arg1())));
     }
 
-    if (functionSig == 0x1812fc) {
+    if (functionSig == FUNC_SIG_GET_APPROVED) {
       _returnValue(_getStorage(_hashApproval(_to(), _arg1())));
     }
 
-    if (functionSig == 0x5ea7b3) {
+    if (functionSig == FUNC_SIG_APPROVE) {
       _revertOnFailure(_approve(_from(), _to(), address(_arg1()), _arg2()));
     }
 
-    if (functionSig == 0x059cbb) {
+    if (functionSig == FUNC_SIG_TRANSFER) {
       _revertOnFailure(_transfer(_from(), _to(), address(_arg1()), _arg2()));
     }
 
-    if (functionSig == 0xb872dd) {
+    if (functionSig == FUNC_SIG_TRANSFER_FROM) {
       _revertOnFailure(_transferFrom(_from(), _to(), address(_arg1()), address(_arg2()), _arg3()));
     }
 
@@ -393,7 +397,7 @@ contract LEVM is Inventory {
       calldatacopy(add(params, 28), calldataOffset, len)
     }
 
-    uint256 functionSig = params[0];
+    uint256 functionSig = params[0] & 0xffffff;
     if (functionSig == FUNC_SIG_APPROVE) {
       address spender = address(uint160(params[1]));
       uint256 value = params[2];
@@ -426,17 +430,17 @@ contract LEVM is Inventory {
         calldatacopy(add(c, 32), calldataOffset, calldataLength)
         // store our address to be used by the patched contract
         // TO
-        sstore(0xaa, to)
+        sstore(0xf0, to)
         // FROM
-        sstore(0xcc, from)
+        sstore(0xf1, from)
       }
       // state is reverted if the contract reverts
       _deployAndCall(GATED_COMPUTING_ADDRESS, to, c);
       assembly {
         // reset slots
-        sstore(0xaa, 0)
-        sstore(0xbb, 0)
-        sstore(0xcc, 0)
+        sstore(0xf0, 0)
+        sstore(0xf1, 0)
+        sstore(0xf2, 0)
       }
     }
 

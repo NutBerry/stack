@@ -59,25 +59,25 @@ contract GatedComputing {
           // ADDRESS
           case 0x30 {
             // PUSH1
-            // 0xaa
+            // 0xf0
             // SLOAD
-            mstore(ptr, 0x60aa540000000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x60f0540000000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 3)
           }
           // ORIGIN
           case 0x32 {
             // PUSH1
-            // 0xcc
+            // 0xf1
             // SLOAD
-            mstore(ptr, 0x60cc540000000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x60f1540000000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 3)
           }
           // CALLER
           case 0x33 {
             // PUSH1
-            // 0xcc
+            // 0xf1
             // SLOAD
-            mstore(ptr, 0x60cc540000000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x60f1540000000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 3)
           }
           // EXTCODESIZE
@@ -123,8 +123,8 @@ contract GatedComputing {
             // call(g, a, v, in, insize, out, outsize)
             // POP - gas
             // PUSH1
-            // 0xbb
-            // SSTORE - (0xbb, a)
+            // 0xf2
+            // SSTORE - (0xf2, a)
             // POP 0x50 - value
             // CALLVALUE 0x34
             // DUP2 0x81
@@ -133,7 +133,7 @@ contract GatedComputing {
             // CALLER
             // GAS
             // CALLCODE
-            mstore(ptr, 0x5060bb555034815334335af20000000000000000000000000000000000000000)
+            mstore(ptr, 0x5060f2555034815334335af20000000000000000000000000000000000000000)
             ptr := add(ptr, 12)
           }
           // STATICCALL
@@ -159,8 +159,8 @@ contract GatedComputing {
             // SWAP1 - reverse first operation
             // POP - gas
             // PUSH1
-            // 0xbb
-            // SSTORE - (0xbb, a)
+            // 0xf2
+            // SSTORE - (0xf2, a)
             // CALLVALUE 0x34
             // DUP2 0x81
             // MSTORE8 0x53
@@ -169,37 +169,98 @@ contract GatedComputing {
             // GAS
             // CALLCODE
             // JUMPDEST = 16
-            mstore(ptr, 0x9080600810600a58015790fa60105801565b905060bb5534815334335af25b00)
+            mstore(ptr, 0x9080600810600a58015790fa60105801565b905060f25534815334335af25b00)
             ptr := add(ptr, 31)
           }
           // CODESIZE
           case 0x38 {
             // PUSH1
-            // 0xaa
+            // 0xf0
             // SLOAD
             // EXTCODESIZE
-            mstore(ptr, 0x60aa543b00000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x60f0543b00000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 4)
           }
           // CODECOPY
           case 0x39 {
             // PUSH1
-            // 0xaa
+            // 0xf0
             // SLOAD
             // EXTCODECOPY
-            mstore(ptr, 0x60aa543c00000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x60f0543c00000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 4)
           }
           // SLOAD
           case 0x54 {
             // TODO
-            mstore(ptr, 0x5060030000000000000000000000000000000000000000000000000000000000)
-            ptr := add(ptr, 3)
+            // CALLVALUE; 0, key
+            // MLOAD; backup1, key...
+            // PUSH1
+            // 32; 32, backup1, key...
+            // MLOAD; backup2, backup1, key...
+            // SWAP2; key, backup1, backup2
+            // CALLVALUE; 0, key, backup1, backup2
+            // MSTORE; backup1, backup2...
+            // PUSH1
+            // 32 ; 32, backup1, backup2...
+            // PUSH1
+            // 0xf0; 0xf0, 32, backup1, backup2
+            // SLOAD; target, 32, backup1, backup2
+            // SWAP1; 32, target, backup1, backup2...
+            // MSTORE; backup1, backup2.....
+            // PUSH1
+            // 64; 64, backup1, backup2...
+            // CALLVALUE; 0, 64, backup1, backup2...
+            // keccak256; newKey, backup1, backup2...
+            // SLOAD; retval, backup1, backup2...
+            // SWAP2; backup2, backup1, retval
+            // PUSH1
+            // 32; 32, backup2, backup1, retval...
+            // MSTORE; backup1, retval....
+            // CALLVALUE; 0, backup1, retval...
+            // MSTORE; retval...
+            mstore(ptr, 0x3451602051913452602060f05490526040342054916020523452000000000000)
+            ptr := add(ptr, 26)
           }
           // SSTORE
           case 0x55 {
             // TODO
-            mstore(ptr, 0x5050000000000000000000000000000000000000000000000000000000000000)
+            // CALLVALUE; 0, key, value
+            // MLOAD; backup1, key, value
+            // PUSH1
+            // 32; 32, backup1, key, value
+            // MLOAD; backup2, backup1, key, value
+            // SWAP2; key, backup1, backup2, value
+            // CALLVALUE; 0, key, backup1, backup2, value
+            // MSTORE; backup1, backup2, value
+            // PUSH1
+            // 32; 32, backup1, backup2, value
+            // PUSH1
+            // 0xf0; f0, 32, backup1, backup2, value
+            // SLOAD; target, 32, backup1, backup2, value
+            // SWAP1; 32, target, backup1, backup2, value
+            // MSTORE; backup1, backup2, value
+            // PUSH1
+            // 64; 64, backup1, backup2, value
+            // CALLVALUE; 0, 64, backup1, backup2, value
+            // keccak256; newKey, backup1, backup2, value
+            // DUP4; value, newKey, backup1, backup2, value
+            // SWAP1; newKey, value, backup1, backup2, value
+            // SSTORE; backup1, backup2, value
+            // CALLVALUE; 0, backup1, backup2, value
+            // MSTORE; backup2, value
+            // PUSH1
+            // 32; 32, backup2, value
+            // MSTORE; value
+            // POP; ...
+            mstore(ptr, 0x3451602051913452602060f05490526040342083905534536020525000000000)
+            ptr := add(ptr, 28)
+          }
+          // GAS
+          case 0x5a {
+            // CALLVALUE - should be zero
+            // NOT
+            mstore(ptr, 0x3419000000000000000000000000000000000000000000000000000000000000)
             ptr := add(ptr, 2)
           }
           default {

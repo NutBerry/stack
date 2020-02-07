@@ -18,7 +18,7 @@ describe('NutBerryRuntime', function () {
   const testContract = new ethers.utils.Interface(TestContract.abi);
   const code = Utils.toUint8Array(TestContract.deployedBytecode);
 
-  it('should fail with empty hofmann struct', async () => {
+  it('should fail with empty inventory', async () => {
     const runtime = new NutBerryRuntime();
     const customEnvironment = new Inventory();
     const data = Utils.toUint8Array(testContract.functions.test.encode(
@@ -65,12 +65,12 @@ describe('NutBerryRuntime', function () {
 
     assert.equal(state.opName, 'STOP', 'should STOP');
 
-    copy.storage['0x1d4aab2b372f685fa1501b8804177f266ee4c99a9494cb9fab2104280f88eac4'] =
-      '0x00000000000000000000000000000000000000000000000000000000000000fe';
-    copy.storage['0xd8fd6a673ff825e021ff13b97d5034ed538d352adbef52622a488fde319e8187'] =
+    copy.storage['0xed56a34d8d586dba3e75a7b52c225703b406033d644d9c90343ea1374e59aefb'] =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
-    copy.storage['0xa7fc4f9c24dc079d7451e0ae638eec1666247511d29df863809b9a0dc9d0d335'] =
+    copy.storage['0x040e4eb11bdac20e22459c04866d3c7fe2a969d69118b7ab0c9a6e7ccea75f22'] =
       '0x0000000000000000000000000000000000000000000000000000000000000005';
+    copy.storage['0x2fa162cb4731588cb51a4a3812ebf24915d915fe739cd61ec38d6ec5bebf9012'] =
+      '0x00000000000000000000000000000000000000000000000000000000000000fe';
 
     copy.addToken(
       {
@@ -89,7 +89,7 @@ describe('NutBerryRuntime', function () {
 
     state.customEnvironment.storageKeys = {};
     copy.storageKeys = {};
-    assert.deepEqual(state.customEnvironment.toJSON(), copy.toJSON(), 'hofmann struct should be correct');
+    assert.deepEqual(state.customEnvironment.toJSON(), copy.toJSON(), 'inventory should be correct');
   });
 
   it('test ERC20 - no allowance', async () => {
@@ -151,12 +151,12 @@ describe('NutBerryRuntime', function () {
 
     assert.equal(state.opName, 'STOP', 'should STOP');
     // owner = BOB
-    copy.storage['0xfa6f0abc27d7a5cfc6bf5858857bfc1aa6d1c5de1c988524dd1f24a392e86b7a'] =
+    copy.storage['0xdacee017b34c7d486e8a9b7dbaa3a24346ceee11b5ccf3de1aad887ab496371a'] =
       '0x0000000000000000000000002222222222222222222222222222222222222222';
     // set approval for this tokenId to zero
-    copy.storage['0xb37d6e072d0d9a8f7f24d340ae8e09481f884c19e7c78b773ff8a02695a26dc8'] =
+    copy.storage['0x84682d67198ca249cbc098d4b287163a8d92530e1c225adbd2de7ad3d2e41654'] =
       '0x0000000000000000000000000000000000000000000000000000000000000000';
     state.customEnvironment.storageKeys = {};
-    assert.deepEqual(state.customEnvironment.toJSON(), copy, 'hofmann struct should be correct');
+    assert.deepEqual(state.customEnvironment.toJSON(), copy, 'inventory should be correct');
   });
 });

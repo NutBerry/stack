@@ -41,7 +41,7 @@ contract TestGatedComputing is LEVM {
   function testCall (address target, bytes memory callData) public {
     assembly {
       // TO
-      sstore(0xaa, 0)
+      sstore(0xf0, 0)
       // call the patched contract
       let success := callcode(gas(), target, 0, add(callData, 32), mload(callData), 0,  32)
       log1(0, 0, mload(0))
@@ -53,7 +53,7 @@ contract TestGatedComputing is LEVM {
   function call (address target, bytes memory callData) public {
     assembly {
       // TO
-      sstore(0xaa, address())
+      sstore(0xf0, address())
       // call the patched contract
       let success := callcode(gas(), target, 0, add(callData, 32), mload(callData), 0,  32)
       log1(0, 0, mload(0))
@@ -66,9 +66,9 @@ contract TestGatedComputing is LEVM {
     assembly {
       // store our address to be used by the patched contract
       // TO
-      sstore(0xaa, address())
+      sstore(0xf0, address())
       // FROM
-      // sstore(0xcc, from)
+      // sstore(0xf1, from)
     }
 
     bool success = _deployAndCall(gated, target, callData);

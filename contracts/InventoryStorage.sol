@@ -25,7 +25,7 @@ contract InventoryStorage {
 
   function _hashERC20Exit (address target, address owner) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, owner), shl(224, 0x0001)))
+      mstore(0, or(shl(64, owner), shl(224, 0x9944279a)))
       mstore(24, shl(96, target))
       ret := keccak256(0, 44)
     }
@@ -33,7 +33,7 @@ contract InventoryStorage {
 
   function _hashERC721Exit (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, target), shl(224, 0x0001)))
+      mstore(0, or(shl(64, target), shl(224, 0x2cf56c4e)))
       mstore(24, tokenId)
       ret := keccak256(0, 56)
     }
@@ -41,7 +41,7 @@ contract InventoryStorage {
 
   function _hashERC20 (address target, address owner) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, target), shl(224, 0x0002)))
+      mstore(0, or(shl(64, target), shl(224, 0x892c0be8)))
       mstore(24, shl(96, owner))
       ret := keccak256(0, 44)
     }
@@ -49,7 +49,7 @@ contract InventoryStorage {
 
   function _hashERC721 (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, target), shl(224, 0x0005)))
+      mstore(0, or(shl(64, target), shl(224, 0x9ca0d15c)))
       mstore(24, tokenId)
       ret := keccak256(0, 56)
     }
@@ -57,7 +57,7 @@ contract InventoryStorage {
 
   function _hashAllowance (address target, address owner, address spender) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, target), shl(224, 0x0003)))
+      mstore(0, or(shl(64, target), shl(224, 0x0459bbcf)))
       mstore(24, shl(96, owner))
       // we overwrite parts of the freeMemPtr, but this is not a problem because the
       // memPtr would never be that high and we overwrite only 12 bytes (zeros) :)
@@ -68,7 +68,7 @@ contract InventoryStorage {
 
   function _hashApproval (address target, uint256 tokenId) internal pure returns (bytes32 ret) {
     assembly {
-      mstore(0, or(shl(64, target), shl(224, 0x0004)))
+      mstore(0, or(shl(64, target), shl(224, 0x43837c20)))
       mstore(24, tokenId)
       ret := keccak256(0, 56)
     }

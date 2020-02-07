@@ -75,7 +75,7 @@ module.exports = class Inventory {
   _addERC20Exit (target, owner, value) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000001' + toStr(owner, 40) + toStr(target, 40),
+        '9944279a' + toStr(owner, 40) + toStr(target, 40),
         'hex'
       )
     );
@@ -89,7 +89,7 @@ module.exports = class Inventory {
   _addERC721Exit (target, tokenId, owner) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000001' + toStr(target, 40) + toStr(tokenId, 64),
+        '2cf56c4e' + toStr(target, 40) + toStr(tokenId, 64),
         'hex'
       )
     );
@@ -99,18 +99,10 @@ module.exports = class Inventory {
     this.storage[k] = `0x${value}`;
   }
 
-  trackNonce (target, value) {
-    const k = `0x${toStr(target, 64)}`;
-    const val = toStr(value, 64);
-
-    this.storageKeys[k] = `0x01${val}`;
-    this.storage[k] = `0x${val}`;
-  }
-
   _hashERC20 (target, owner) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000002' + toStr(target, 40) + toStr(owner, 40),
+        '892c0be8' + toStr(target, 40) + toStr(owner, 40),
         'hex'
       )
     );
@@ -121,7 +113,7 @@ module.exports = class Inventory {
   _hashERC721 (target, tokenId) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000005' + toStr(target, 40) + toStr(tokenId, 64),
+        '9ca0d15c' + toStr(target, 40) + toStr(tokenId, 64),
         'hex'
       )
     );
@@ -132,7 +124,7 @@ module.exports = class Inventory {
   _hashAllowance (target, owner, spender) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000003' + toStr(target, 40) + toStr(owner, 40) + toStr(spender, 40),
+        '0459bbcf' + toStr(target, 40) + toStr(owner, 40) + toStr(spender, 40),
         'hex'
       )
     );
@@ -143,7 +135,7 @@ module.exports = class Inventory {
   _hashApproval (target, tokenId) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '00000004' + toStr(target, 40) + toStr(tokenId, 64),
+        '43837c20' + toStr(target, 40) + toStr(tokenId, 64),
         'hex'
       )
     );
@@ -155,7 +147,7 @@ module.exports = class Inventory {
   _hashStorage (target, key) {
     const k = ethers.utils.keccak256(
       Buffer.from(
-        '000000ff' + toStr(target, 40) + toStr(key, 64),
+        toStr(key, 64) + toStr(target, 64),
         'hex'
       )
     );
@@ -170,6 +162,14 @@ module.exports = class Inventory {
     const padded = toStr(value, 64);
     this.storage[key] = `0x${padded}`;
     this.storageKeys[key] = `0x01${padded}`;
+  }
+
+  trackNonce (target, value) {
+    const k = `0x${toStr(target, 64)}`;
+    const val = toStr(value, 64);
+
+    this.storageKeys[k] = `0x01${val}`;
+    this.storage[k] = `0x${val}`;
   }
 
   addToken (e) {

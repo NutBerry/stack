@@ -168,7 +168,9 @@ module.exports = class Block {
       const origin = Buffer.from(tx.from.replace('0x', ''), 'hex');
       const caller = origin;
       const runtime = new NutBerryRuntime();
-      const state = await runtime.run({ address, origin, caller, code, data, customEnvironment });
+      // the maximum allowed steps the call can make
+      const stepCount = 0x1fffff;
+      const state = await runtime.run({ stepCount, address, origin, caller, code, data, customEnvironment });
 
       if (state.errno !== 0) {
         this.log('STATE ERROR', state.errno, tx.hash, tx.from, tx.nonce);

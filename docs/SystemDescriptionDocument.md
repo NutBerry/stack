@@ -1,4 +1,6 @@
 # Notes
+
+*This document is outdated and needs to be updated*
 This document represents an overview about the current specification and is work in progress.
 
 ## A list of (perhaps) planned changes
