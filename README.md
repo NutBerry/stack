@@ -46,7 +46,7 @@ To install the dependencies:
 yarn
 ```
 This project uses `geth` to run the integration tests.
-Make sure that you have at least `geth v1.8.21 ` available in your environment.
+Make sure that you have at least `geth v1.9.9` available in your environment.
 You can run the tests with `yarn test`.
 
 ## Deployment
