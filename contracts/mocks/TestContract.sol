@@ -5,7 +5,7 @@ import './ERC721.sol';
 
 
 contract TestContract {
-  address constant SPENDER_ADDR = 0xF3beAC30C498D9E26865F34fCAa57dBB935b0D74;
+  address public constant SPENDER_ADDR = 0xF3beAC30C498D9E26865F34fCAa57dBB935b0D74;
 
   mapping (address => uint256) public deposits;
 
@@ -141,6 +141,24 @@ contract TestContract {
       let success := call(gas(), bridge, callvalue(), 0, size, 0, 0)
       if iszero(success) {
         revert(0, 0)
+      }
+    }
+  }
+
+  function testGAS () public {
+    uint256 val;
+    assembly {
+      val := gas()
+    }
+    if (val != uint256(-1)) {
+      revert();
+    }
+  }
+
+  function doLoop (uint256 rounds) public {
+    while (rounds-- != 0) {
+      assembly {
+        log1(0, 0, rounds)
       }
     }
   }

@@ -63,17 +63,40 @@ In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows si
 
 ### Client
 
-The NutBerry-node `js/bin.js` needs the following environment variables:
+The `nutberry-node` (`js/bin.js`) supports the following environment variables:
 
-* `BRIDGE_ADDRESS` - 0x... The contract address of the Bridge on the root-chain.
-* `PRIV_KEY` - 0x... The private key for a root-chain account. That account should have some ether to be useful.
-* `PORT` - The port to listen on for the RPC interface.
-* `ROOT_RPC_URL` - The URL of the root-chain rpc provider.
-
-Optional:
-* `HOST` - The address to listen on for the RPC interface. Defaults to `localhost`.
-* `DEBUG_MODE` - Used for testing, if `=1` enables additional RPC methods and other things meant for development.
-* `BAD_NODE_MODE` - Used for testing, if `=1` it will compute wrong solutions to trigger the verification game.
+* Option: BRIDGE_ADDRESS
+  Type: String
+  Required: true
+  The contract address of the Bridge on the root-chain.
+* Option: PRIV_KEY
+  Type: String
+  Default:
+  The private key for a root-chain account. That account should have some ether to be useful. Required to participate in the network.
+* Option: PORT
+  Type: Number
+  Required: true
+  The port to listen on for the JSON-RPC interface.
+* Option: HOST
+  Type: String
+  Default: localhost
+  The address to listen on for the JSON-RPC interface.
+* Option: ROOT_RPC_URL
+  Type: String
+  Required: true
+  The URL for the root-chain JSON-RPC provider.
+* Option: EVENT_CHECK_MS
+  Type: Number
+  Default: 15000
+  Time in milliseconds to check for Bridge event updates.
+* Option: DEBUG_MODE
+  Type: Number
+  Default: 0
+  Debug mode, for development purposes.
+* Option: BAD_NODE_MODE
+  Type: Number
+  Default: 0
+  For development purposes, simulates a rogue node.
 
 # Documentation
 

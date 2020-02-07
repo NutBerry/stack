@@ -282,6 +282,15 @@ describe('Bridge/RPC', async function () {
       tx = await tx.wait();
     });
 
+    it('TestContract.testGAS - should not throw', async () => {
+      let tx = await testContract.testGAS();
+      tx = await tx.wait();
+    });
+
+    it('TestContract.doLoop - should throw', async () => {
+      await assertRevert(testContract.doLoop(0xffffffff));
+    });
+
     it('TestContract.partialFail', async () => {
       const balanceBefore = await erc20.balanceOf(walletAlice.address);
 
@@ -545,9 +554,7 @@ describe('Bridge/RPC', async function () {
         });
       }
     );
-  });
 
-  describe('Misc', async () => {
     it('Submitting block from a contract should fail', async () => {
       await assertRevert(
         rootWalletAlice.sendTransaction(
@@ -557,6 +564,17 @@ describe('Bridge/RPC', async function () {
             gasLimit: 6000000,
           }
         )
+      );
+    });
+
+    it('check function signatures', async () => {
+      Object.keys(bridge.interface.functions).forEach(
+        (k) => {
+          assert.ok(
+            bridge.interface.functions[k].sighash.startsWith('0x00') === false,
+            'function signature must not have a leading zero byte due to call forwarding in GatedComputing'
+          );
+        }
       );
     });
   });

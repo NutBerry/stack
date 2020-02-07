@@ -190,7 +190,6 @@ module.exports = class EVMRuntime {
   }
 
   async run (args) {
-    // TODO: Support EVMParameters
     const runState = await this.initRunState(args);
     let stepCount = args.stepCount | 0;
 
@@ -199,6 +198,7 @@ module.exports = class EVMRuntime {
 
       if (stepCount !== 0) {
         if (--stepCount === 0) {
+          runState.errno = 0xff;
           break;
         }
       }

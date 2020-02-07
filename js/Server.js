@@ -16,9 +16,9 @@ module.exports = class Server {
     const server = new http.Server(this.onRequest.bind(this));
     // timeout after 120 seconds
     server.timeout = 120000;
-    server.listen(options.port, options.host);
+    server.listen(options.rpcPort, options.host);
 
-    this.log(`listening on ${options.host}:${options.port}`);
+    this.log(`listening on ${options.host}:${options.rpcPort}`);
   }
 
   log (...args) {
