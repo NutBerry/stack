@@ -13,7 +13,8 @@
     "geth": "RPC_PORT=8222 scripts/geth.js",
     "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --exit --timeout=900000",
     "test:evm": "mocha --exit evm/test",
-    "coverage": "yarn compile && yarn geth && develatus-apparatus"
+    "coverage": "yarn compile && yarn geth && develatus-apparatus",
+    "docker:build": "docker build -t docker.pkg.github.com/nutberry/stack/node:latest ."
   },
   "dependencies": {
     "ethereumjs-util": "=6.1.0",
