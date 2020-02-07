@@ -13,7 +13,6 @@ describe('GatedComputing', async function () {
   const BOB = '0x2222222222222222222222222222222222222222';
   const ACCOUNT_BALANCE = '0x00000000000000000000000000000000000000000000000000000000000000ff';
   const NFT_ID = 1;
-  const gasLimit = '0x' + (8000000).toString(16);
   const testContractInterface = new ethers.utils.Interface(TestContract.abi);
   const testGatedInterface = new ethers.utils.Interface(TestGatedComputing.abi);
   let provider;
@@ -23,10 +22,14 @@ describe('GatedComputing', async function () {
   let patchedAddress;
   let testContractPatched;
   let testContract;
+  let gasLimit;
 
   before('Prepare', async () => {
     provider = new ethers.providers.JsonRpcProvider(`http://localhost:${process.env.RPC_PORT}`);
     wallet = await provider.getSigner(0);
+
+    const block = await provider.getBlock('latest');
+    gasLimit = block.gasLimit.mul(10).div(11);
 
     let _factory = new ethers.ContractFactory(
       GatedComputing.abi,
@@ -223,7 +226,7 @@ describe('GatedComputing', async function () {
       [TOKEN, [ALICE, BOB], ['0xfa', '0xff']]
     );
 
-    tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+    tx = await(await testGatedContract.callWithAddress(testContractPatched, data, { gasLimit })).wait();
 
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
@@ -233,7 +236,7 @@ describe('GatedComputing', async function () {
     const data = testContractInterface.functions.testERC20.encode(
       [TOKEN, ALICE, BOB, ACCOUNT_BALANCE]
     );
-    const tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+    const tx = await(await testGatedContract.callWithAddress(testContractPatched, data, { gasLimit })).wait();
 
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
@@ -260,7 +263,7 @@ describe('GatedComputing', async function () {
       '0xfa'
     )).wait();
 
-    tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+    tx = await(await testGatedContract.callWithAddress(testContractPatched, data, { gasLimit })).wait();
     console.log({ gasUsed: tx.cumulativeGasUsed.toString() });
     assert.equal(tx.events[0].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
     assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
@@ -291,6 +294,19 @@ describe('GatedComputing', async function () {
       testGatedContract.address,
       '0xfa'
     )).wait();
+
+    let reverted = false;
+    try {
+      tx = await(
+        await testGatedContract.deployAndCall(
+          gated.address, testContract.address, data, { gasLimit: 6000000 }
+        )
+      ).wait();
+    } catch (e) {
+      reverted = e.code === 'CALL_EXCEPTION';
+    }
+
+    assert.ok(reverted, 'should fail - gasLimit too low');
 
     tx = await(
       await testGatedContract.deployAndCall(
@@ -353,7 +369,7 @@ describe('GatedComputing', async function () {
           NFT_ID,
         )).wait();
 
-        tx = await(await testGatedContract.call(testContractPatched, data, { gasLimit })).wait();
+        tx = await(await testGatedContract.callWithAddress(testContractPatched, data, { gasLimit })).wait();
         assert.equal(tx.events[0].topics[0], result);
         assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000001');
       });

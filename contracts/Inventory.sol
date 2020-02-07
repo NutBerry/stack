@@ -124,7 +124,5 @@ contract Inventory is InventoryStorage {
       }
       return 1;
     }
-
-    return 0;
   }
 }
