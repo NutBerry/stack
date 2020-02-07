@@ -32,7 +32,7 @@ all transactions either through directly finalizing a Block of transactions on-c
 - [x] Support the ERC20 token standard.
 - [x] Support arbitrary stateless smart contracts.
 - [x] Support the ERC721 standard.
-- [ ] Stateful smart contracts, aka smart contracts with support for storage.
+- [x] Stateful smart contracts, aka smart contracts with support for storage.
 - [ ] State-roots / merkelized state.
 - [ ] Additional signing schemes (ERC712) and BLS aggregates.
 - [ ] NutBerry-node: P2P Connectivity/Exchange via JSON RPC - Simple HTTP (pub-key, node-id) exchange with switch to https.
