@@ -4,11 +4,11 @@
   "author": "NutBerry",
   "license": "MPL-2.0",
   "bin": {
-    "nutberry-node": "js/bin.js"
+    "nutberry-node": "nutberry-node.js"
   },
   "main": "js/index.js",
- "scripts": {
-    "lint": "eslint scripts/ js/ test/ evm/js evm/test && solhint contracts/**/*{.sol,.slb}",
+  "scripts": {
+    "lint": "eslint . && solhint contracts/**/*{.sol,.slb}",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 scripts/geth.js",
     "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --exit --timeout=900000",
