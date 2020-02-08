@@ -66,15 +66,15 @@ const OPTIONS = [
 function printHelp () {
   OPTIONS.forEach(
     function (option) {
-      console.log(`Option: ${option.env}\n  Type: ${option.type.name}`);
+      console.log(`* Option: ${option.env}\n  * Type: ${option.type.name}`);
       if (option.default !== undefined) {
-        console.log(`  Default: ${option.default}`);
+        console.log(`  * Default: ${option.default}`);
       }
       if (option.required) {
-        console.log('  Required: true');
+        console.log('  * Required: true');
       }
       if (option.help) {
-        console.log(`  ${option.help}`);
+        console.log(`  * ${option.help}`);
       }
     }
   );
