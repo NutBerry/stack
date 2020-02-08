@@ -85,11 +85,14 @@ function onException (e) {
   process.exit(1);
 }
 
+function onSignal () {
+  process.exit(0);
+}
+
 process.on('uncaughtException', onException);
 process.on('unhandledRejection', onException);
-process.on('SIGTERM', function () {
-  process.exit(0);
-});
+process.on('SIGINT', onSignal);
+process.on('SIGTERM', onSignal);
 
 (async function () {
   const config = {};

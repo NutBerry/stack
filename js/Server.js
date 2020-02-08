@@ -87,7 +87,6 @@ module.exports = class Server {
         body.result = await func(body, this.bridge);
         resp.end(JSON.stringify(body));
       } catch (e) {
-        console.log(e, e.stack);
         body.error = {
           code: -32000,
           message: (e.message || e).toString(),

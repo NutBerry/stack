@@ -85,16 +85,16 @@ contract Inventory is InventoryStorage {
       // we assume ERC20
       bytes32 senderKey = _hashERC20(target, from);
       bytes32 allowanceKey = _hashAllowance(target, from, msgSender);
-      uint256 allowed = _getStorage(allowanceKey);
+      uint256 allowance = _getStorage(allowanceKey);
       uint256 senderValue = _getStorage(senderKey);
 
       // not enough balance or not approved ?
-      if (senderValue < value || (value > allowed && from != msgSender) || value == 0) {
+      if (senderValue < value || (value > allowance && from != msgSender) || value == 0) {
         return 0;
       }
 
-      if (from != msgSender) {
-        _setStorage(allowanceKey, allowed - value);
+      if (from != msgSender && allowance != uint256(-1)) {
+        _setStorage(allowanceKey, allowance - value);
       }
 
       _setStorage(senderKey, senderValue - value);

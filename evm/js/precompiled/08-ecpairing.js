@@ -1,7 +1,5 @@
 'use strict';
 
-const utils = require('ethereumjs-util');
-const BN = utils.BN;
 const bn128 = require('rustbn.js');
 
 module.exports = function (data) {
