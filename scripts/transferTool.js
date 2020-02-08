@@ -4,7 +4,7 @@
 const ethers = require('ethers');
 
 const ERC20 = require('./../build/contracts/ERC20.json');
-const BRIDGE_ABI = require('./../build/contracts/Bridge.json').abi;
+const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 
 async function printBalances (bridge, erc20Root, erc20, wallet) {
   console.log(
@@ -14,7 +14,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
       Layer1Balance: (await erc20Root.balanceOf(wallet.address)).toString(),
       Layer2Balance: (await erc20.balanceOf(wallet.address)).toString(),
       availableOnBridge: (await erc20.allowance(bridge.address, wallet.address)).toString(),
-      availableOnBridgeForExit: (await bridge.getExit(erc20.address, wallet.address)).toString(),
+      availableOnBridgeForExit: (await bridge.getERC20Exit(erc20.address, wallet.address)).toString(),
     }
   );
 }
@@ -23,11 +23,11 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   const commando = process.argv[2];
   const env = process.env;
 
-  if (!env.PRIV_KEY || !env.ROOT_RPC || !env.RPC || commando !== 'deploy-erc20' && !env.ERC20) {
+  if (!env.PRIV_KEY || !env.ROOT_RPC_URL || !env.RPC || commando !== 'deploy-erc20' && !env.ERC20) {
     console.log(
       `I need the following environment variables:
       PRIV_KEY: 0x... the private key of the account to use
-      ROOT_RPC: root rpc url
+      ROOT_RPC_URL: root rpc url
       RPC: NutBerry rpc url
       ERC20: (Optional) The address of a ERC20 contract.
              You can also deploy one with the command \`deploy-erc20\`
@@ -36,9 +36,9 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     return;
   }
 
-  const rootProvider = new ethers.providers.JsonRpcProvider(env.ROOT_RPC);
+  const rootProvider = new ethers.providers.JsonRpcProvider(env.ROOT_RPC_URL);
   const provider = new ethers.providers.JsonRpcProvider(env.RPC);
-  const wallet = new ethers.Wallet(env.PRIV_KEY);
+  const wallet = new ethers.Wallet(env.PRIV_KEY, provider);
   console.log({ account: wallet.address });
 
   const bridgeAddress = await provider.send('web3_clientVersion', []);
@@ -49,16 +49,18 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   let erc20;
 
   if (env.ERC20) {
-    erc20Root = new ethers.Contract(env.ERC20, ERC20.abi, wallet.connect(rootProvider));
-    erc20 = erc20Root.connect(wallet.connect(provider));
+    erc20 = new ethers.Contract(env.ERC20, ERC20.abi, wallet);
+    erc20Root = erc20.connect(wallet.connect(rootProvider));
   }
 
   if (commando === 'deposit') {
     const amount = process.argv[3];
     let tx = await erc20Root.approve(bridge.address, amount);
+    console.log(`approve txHash: ${tx.hash}`);
     tx = await tx.wait();
 
     tx = await bridge.deposit(erc20Root.address, amount);
+    console.log(`deposit txHash: ${tx.hash}`);
     tx = await tx.wait();
 
     console.log(tx);
@@ -78,9 +80,25 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     const amount = process.argv[4];
     let tx = await erc20.transfer(to, amount);
     tx = await tx.wait();
-    console.log(tx);
+    console.log(tx.transactionHash);
+    return;
+  }
 
-    await printBalances(bridge, erc20Root, erc20, wallet);
+  if (commando === 'transferLoop') {
+    const to = process.argv[3];
+    const amount = process.argv[4];
+    while (1) {
+      let tx = await erc20.transfer(to, amount);
+      tx = await tx.wait();
+      console.log(tx.transactionHash);
+    }
+    return;
+  }
+
+  if (commando === 'exit') {
+    const amount = process.argv[3];
+    let tx = await erc20.transfer('0x0000000000000000000000000000000000000000', amount);
+    tx = await tx.wait();
     return;
   }
 
@@ -92,8 +110,11 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     let tx = await erc20.transferFrom(from, to, amount);
     tx = await tx.wait();
     console.log(tx);
+    return;
+  }
 
-    await printBalances(bridge, erc20Root, erc20, wallet);
+  if (commando === 'txcount') {
+    console.log(await wallet.getTransactionCount());
     return;
   }
 

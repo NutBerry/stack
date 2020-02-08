@@ -15,4 +15,4 @@ FROM base AS release
 WORKDIR /opt/node
 COPY . /opt/node
 COPY --from=deps /opt/node_modules /opt/node_modules
-CMD ["/opt/node/js/bin.js"]
+CMD ["/opt/node/nutberry-node.js"]

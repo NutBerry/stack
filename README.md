@@ -63,7 +63,7 @@ In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows si
 
 ### Client
 
-The `nutberry-node` (`js/bin.js`) supports the following environment variables:
+The [nutberry-node](nutberry-node.js) supports the following environment variables:
 
 ```
 * Option: BRIDGE_ADDRESS
@@ -102,7 +102,7 @@ The `nutberry-node` (`js/bin.js`) supports the following environment variables:
 
 # Documentation
 
-The [System Description Document](https://github.com/NutBerry/stack/blob/master/docs/SystemDescriptionDocument.md).
+The [System Description Document](docs/SystemDescriptionDocument.md).
 
 Additionaly, taking a look at `contracts/Bridge.sol` and `tests/Bridge.js` will give you an idea how things fit together.
 

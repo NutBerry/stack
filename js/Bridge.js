@@ -27,7 +27,6 @@ module.exports = class Bridge {
     this.debugMode = options.debugMode ? true : false;
     this.badNodeMode = options.badNodeMode ? true : false;
     this.eventCheckMs = options.eventCheckMs || 1000;
-    this.updateCheckMs = options.updateCheckMs || 10000;
 
     this.rootProvider = new ethers.providers.JsonRpcProvider(options.rootRpcUrl);
     if (options.privKey) {
@@ -101,7 +100,6 @@ module.exports = class Bridge {
         debugMode: this.debugMode,
         badNodeMode: this.badNodeMode,
         eventCheckMs: this.eventCheckMs,
-        updateCheckMs: this.updateCheckMs,
       }
     );
 
@@ -111,9 +109,14 @@ module.exports = class Bridge {
 
     // sync
     this.log('syncing...');
-    for (let i = createdAtBlock; i <= latestBlock; i++)  {
-      this.eventFilter.fromBlock = i;
-      this.eventFilter.toBlock = i;
+    this.eventFilter.fromBlock = createdAtBlock;
+    for (let i = createdAtBlock; i <= latestBlock;)  {
+      let toBlock = i + 100;
+      if (toBlock > latestBlock) {
+        toBlock = latestBlock;
+      }
+      this.eventFilter.toBlock = toBlock;
+      this.log(`from: ${this.eventFilter.fromBlock} to: ${this.eventFilter.toBlock} / ${latestBlock}`);
 
       const res = await this.rootProvider.getLogs(this.eventFilter);
       const len = res.length;
@@ -121,6 +124,9 @@ module.exports = class Bridge {
       for (let i = 0; i < len; i++) {
         await this._dispatchEvent(res[i]);
       }
+
+      i = toBlock + 1;
+      this.eventFilter.fromBlock = i;
     }
 
     this.ready = true;
@@ -132,12 +138,10 @@ module.exports = class Bridge {
       }
     );
 
-    this._fetchEvents();
+    this._eventLoop();
 
     // Disable automatic submissions for testing or debugging purposes.
-    if (!this.debugMode) {
-      this._updateLoop();
-    } else {
+    if (this.debugMode) {
       this.log('Disabled update loop because of debugMode');
     }
   }
@@ -145,9 +149,17 @@ module.exports = class Bridge {
   async forwardChain () {
     // TODO
     // that needs to honour submission thresholds
-    if (this.pendingBlock.transactionHashes.length) {
+    if (!this._pendingBlockSubmission && this.pendingBlock.transactionHashes.length) {
+      this._pendingBlockSubmission = true;
+
       this.log('submitting block...');
-      await this.pendingBlock.submitBlock(this);
+      try {
+        await this.pendingBlock.submitBlock(this);
+      } catch (e) {
+        this.log(e);
+      }
+
+      this._pendingBlockSubmission = false;
     }
 
     // finalize or submit solution, if possible
@@ -160,8 +172,8 @@ module.exports = class Bridge {
       if (block && block.hash) {
         // no solution yet?
         if (!block.submittedSolutionHash) {
-          // probably a deposit block - resolve directly
-          if (block.transactionHashes.length === 0) {
+          // a deposit block - resolve directly
+          if (block.isDepositBlock) {
             await this.directReplay(block.number);
           } else {
             if (await this.submitSolution(block.number)) {
@@ -179,24 +191,36 @@ module.exports = class Bridge {
           }
 
           const canFinalize = await this.contract.canFinalizeBlock(block.number.toString());
+          this.log(`Can finalize pending block: ${block.number}=${canFinalize}`);
           if (canFinalize) {
-            this.log(`Can finalize pending block: ${canFinalize}`);
-
             const ok = await this.finalizeSolution(block.number);
             this.log(`finalizeSolution: ${ok}`);
+          } else {
+            // cant finalize, maybe the solution is too young?
+            const blockNow = await this.rootProvider.getBlockNumber();
+            const submitted = block.submittedSolutionTime;
+            const diff = blockNow - submitted;
+
+            if (diff > this.INSPECTION_PERIOD) {
+              this.log(`${diff} > INSPECTION_PERIOD but can not finalize block, starting dispute...`);
+              await this._processDispute(block);
+            }
           }
         }
       }
     }
   }
 
-  async _updateLoop () {
+  async _eventLoop () {
     try {
-      await this.forwardChain();
+      await this._fetchEvents();
+      if (!this.debugMode) {
+        await this.forwardChain();
+      }
     } catch (e) {
       this.log(e);
     }
-    setTimeout(this._updateLoop.bind(this), this.updateCheckMs);
+    setTimeout(this._eventLoop.bind(this), this.eventCheckMs);
   }
 
   async _dispatchEvent (evt) {
@@ -211,9 +235,8 @@ module.exports = class Bridge {
     if (!this._debugHaltEvents) {
       const latestBlock = await this.rootProvider.getBlockNumber();
 
-      if (latestBlock > this.eventFilter.fromBlock) {
+      if (latestBlock >= this.eventFilter.fromBlock) {
         this.log('New root block(s). Checking for new events...');
-        this.eventFilter.fromBlock += 1;
         this.eventFilter.toBlock = latestBlock;
 
         const res = await this.rootProvider.getLogs(this.eventFilter);
@@ -224,11 +247,9 @@ module.exports = class Bridge {
           await this._dispatchEvent(res[i]);
         }
 
-        this.eventFilter.fromBlock = latestBlock;
+        this.eventFilter.fromBlock = latestBlock + 1;
       }
     }
-
-    setTimeout(this._fetchEvents.bind(this), this.eventCheckMs);
   }
 
   async onDeposit (data) {
@@ -319,6 +340,7 @@ module.exports = class Bridge {
     const block = await this.getBlockByNumber(BigInt(blockNumber));
 
     block.submittedSolutionHash = solutionHash;
+    block.submittedSolutionTime = evt.blockNumber;
   }
 
   async getBlockByHash (hash) {
@@ -353,7 +375,7 @@ module.exports = class Bridge {
 
   async addBlock (block) {
     block.freeze();
-    await this.pendingBlock.refactor(block, this);
+    await this.pendingBlock.rebase(block, this);
   }
 
   async getNonce (addr) {
@@ -450,7 +472,7 @@ module.exports = class Bridge {
   }
 
   async _processDispute (block) {
-    const TAG = 'Bridge.dispute';
+    const TAG = `Bridge.dispute(${block.number})`;
     const rootBlock = await this.rootProvider.getBlock('latest');
     const gasLimit = rootBlock.gasLimit.mul(10).div(11);
     const txData = {

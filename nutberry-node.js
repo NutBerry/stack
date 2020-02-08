@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { Server } = require('./index.js');
+const { Server } = require('./js/index.js');
 
 const OPTIONS = [
   {

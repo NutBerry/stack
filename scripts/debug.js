@@ -61,7 +61,7 @@ const procs = [];
     function startNode () {
       const PRIV_KEY = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b750120' + i;
       const _env = Object.assign({ PORT: 8000 + i, PRIV_KEY, BAD_NODE_MODE: (i % 2 !== 0) ? 1 : 0 }, env);
-      const proc = spawn('node', [`${__dirname}/../js/bin.js`], { env: _env });
+      const proc = spawn('node', [`${__dirname}/../nutberry-node.js`], { env: _env });
 
       function onData (buf) {
         let str = buf.toString().split('\n');

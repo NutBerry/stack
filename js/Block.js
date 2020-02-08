@@ -26,6 +26,7 @@ module.exports = class Block {
     this.transactions = {};
     // ordered list of transaction hashes in this Block
     this.transactionHashes = [];
+    this.isDepositBlock = false;
 
     if (prevBlock) {
       // copy nonces since `prevBlock`
@@ -37,10 +38,11 @@ module.exports = class Block {
 
   addDeposit (obj) {
     this.inventory.addToken(obj);
+    this.isDepositBlock = true;
   }
 
   log (...args) {
-    console.log(`Block(${this.number})`, ...args);
+    console.log(`${this.isDepositBlock ? 'DepositBlock' : 'Block'}(${this.number})`, ...args);
   }
 
   freeze () {
@@ -49,15 +51,16 @@ module.exports = class Block {
     this.inventory.freeze();
   }
 
-  async refactor (prevBlock, bridge) {
+  async rebase (prevBlock, bridge) {
     this.hash = null;
+    this.isDepositBlock = false;
     this.prevBlock = prevBlock;
     this.inventory = prevBlock.inventory.clone();
     this.number = prevBlock.number + BIG_ONE;
     this.nonces = Object.assign({}, prevBlock.nonces);
     this.inventory.storageKeys = {};
 
-    this.log(`Refactor:Started ${this.transactionHashes.length} transactions`);
+    this.log(`Rebase:Started ${this.transactionHashes.length} transactions`);
 
     const hashes = this.transactionHashes;
     const txs = this.transactions;
@@ -69,14 +72,14 @@ module.exports = class Block {
       const tx = txs[hash];
 
       if (this.prevBlock.transactions[hash]) {
-        this.log('dropping', hash);
+        this.log('Rebase:Dropping tx', hash);
         continue;
       }
 
-      this.log('Refactor:Adding tx');
+      this.log('Rebase:Adding tx');
       await this.addTransaction(tx.raw, bridge);
     }
-    this.log(`Refactor:Complete ${this.transactionHashes.length} transactions left`);
+    this.log(`Rebase:Complete ${this.transactionHashes.length} transactions left`);
   }
 
   async addTransaction (data, bridge) {
@@ -256,6 +259,12 @@ module.exports = class Block {
     for (let i = 0; i < hashes.length; i++) {
       const hash = hashes[i];
       let tx = this.transactions[hash];
+
+      if (tx.submitted) {
+        this.log(`Already marked as submitted: ${tx.from}:${tx.nonce}`);
+        continue;
+      }
+
       // rsv and so on
       tx = ethers.utils.parseTransaction(tx.raw);
 
@@ -272,6 +281,7 @@ module.exports = class Block {
       payloadLength += byteLength;
 
       transactions.push(encoded);
+      this.transactions[hash].submitted = true;
     }
 
     const rawData = transactions.join('');
@@ -304,7 +314,9 @@ module.exports = class Block {
     const keys = Object.keys(storageKeys);
 
     this.log('Block.computeSolution');
-    this.log(storageKeys);
+    if (bridge.debugMode) {
+      this.log(storageKeys);
+    }
 
     let buf = Buffer.alloc(0);
     for (let i = 0; i < keys.length; i++) {
@@ -330,9 +342,7 @@ module.exports = class Block {
       hash: ethers.utils.solidityKeccak256(['bytes'], [buf]),
     };
 
-    this.log('==================================================================================');
-    this.log(solution);
-    this.log('==================================================================================');
+    this.log(`Solution: ${solution.hash}`);
 
     return solution;
   }
