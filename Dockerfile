@@ -7,9 +7,9 @@ FROM base AS deps
 # We will use pure js functions without native modules,
 # this we do not need to compile anything.
 ARG BUILD_DEPS="git"
-RUN apk add --no-cache --update --virtual build_deps $BUILD_DEPS
+RUN apk add --no-cache $BUILD_DEPS
 COPY package.json yarn.lock /opt/
-RUN yarn install --production
+RUN yarn install --production --frozen-lockfile --ignore-optional --verbose
 
 FROM base AS release
 WORKDIR /opt/node
