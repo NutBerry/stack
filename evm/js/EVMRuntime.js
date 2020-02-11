@@ -48,26 +48,6 @@ function VmError (error) {
 
 const ADDRESS_ZERO_BUF = Buffer.alloc(20);
 
-function NumToBuf32 (val) {
-  val = val.toString(16);
-
-  while (val.length !== 64) {
-    val = '0' + val;
-  }
-
-  return Buffer.from(val, 'hex');
-}
-
-function NumToHex (val) {
-  val = val.toString(16).replace('0x', '');
-
-  if (val.length % 2 !== 0) {
-    val = '0' + val;
-  }
-
-  return val;
-}
-
 // Find Ceil(`this` / `num`)
 function divCeil (a, b) {
   const div = a.div(b);
@@ -596,12 +576,11 @@ module.exports = class EVMRuntime {
     const returnDataOffset = runState.stack.pop();
     const length = runState.stack.pop();
 
-    // TODO: check if this the desired behaviour
     if ((returnDataOffset.add(length)).gtn(runState.returnValue.length)) {
       throw new VmError(ERROR.OUT_OF_GAS);
     }
 
-    this.memStore(runState, memOffset, utils.toBuffer(runState.returnValue), returnDataOffset, length);
+    this.memStore(runState, memOffset, runState.returnValue, returnDataOffset, length);
   }
 
   async handleGASPRICE (runState) {
@@ -767,7 +746,6 @@ module.exports = class EVMRuntime {
   async handleLOG (runState) {
     const val = (runState.opCode - 0xa0) + 2;
 
-    // TODO: support for logs
     runState.stack.splice(runState.stack.length - val);
   }
 

@@ -4,10 +4,9 @@ const ethers = require('ethers');
 
 const BIGINT_ZERO = BigInt(0);
 const BIGINT_ONE = BigInt(1);
-const BIGINT_POW_2_32 = BigInt(4294967296);
+const BIGINT_MAX = BigInt.asUintN(256, '-1');
 const UINT_ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const UINT_ONE = '0x0000000000000000000000000000000000000000000000000000000000000001';
-const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
 const TOPIC_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const TOPIC_APPROVAL = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
@@ -314,7 +313,7 @@ module.exports = class Inventory {
         return [undefined, []];
       }
 
-      if (from !== msgSender) {
+      if (from !== msgSender && allowance !== BIGINT_MAX) {
         this._setValue(allowanceKey, allowance - want);
       }
 
