@@ -100,9 +100,14 @@ The [nutberry-node](nutberry-node.js) supports the following environment variabl
 
 # Documentation
 
-The [System Description Document](docs/SystemDescriptionDocument.md).
+* The [System Description Document](docs/SystemDescriptionDocument.md).
+* [FAQ](docs/FAQ.md).
 
 Additionaly, taking a look at `contracts/Bridge.sol` and `tests/Bridge.js` will give you an idea how things fit together.
+
+## Public Testnet
+
+See [here](docs/PublicTestnet.md).
 
 # Communication
 

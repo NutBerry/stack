@@ -281,6 +281,7 @@ module.exports = class Block {
       payloadLength += byteLength;
 
       transactions.push(encoded);
+      // TODO: only mark it submitted once we submitted it (below)
       this.transactions[hash].submitted = true;
     }
 
