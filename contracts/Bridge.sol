@@ -105,9 +105,12 @@ contract Bridge is _Bridge {
     uint256 blockNumber,
     bytes32 solutionHash
   ) public {
-    // TODO
-    require(blockNumber == finalizedHeight + 1);
+    uint256 tmp = finalizedHeight;
+
+    require(blockNumber > tmp);
+    require(blockNumber <= tmp + 256);
     require(solutionHash != 0);
+    require(solutionHash != bytes32(uint256(-1)));
     require(blocks[blockNumber] != 0);
     require(blockSolutions[blockNumber] == 0);
 
@@ -115,6 +118,17 @@ contract Bridge is _Bridge {
     timeOfSubmission[blockNumber] = block.number;
 
     emit NewSolution(blockNumber, solutionHash);
+  }
+
+  /// @dev Flag a solution.
+  function flagSolution (uint256 blockNumber) public {
+    uint256 tmp = finalizedHeight;
+
+    require(blockNumber > tmp);
+    require(blockNumber <= tmp + 256);
+    require(blockSolutions[blockNumber] != 0);
+
+    blockSolutions[blockNumber] = bytes32(uint256(-1));
   }
 
   /// @dev Challenge a solution
@@ -141,11 +155,20 @@ contract Bridge is _Bridge {
     disputeOffset = nextOffset;
   }
 
-  /// @dev Returns true if `blockHash` can be finalized, else false.
+  /// @dev Returns true if `blockNumber` can be finalized, else false.
   function canFinalizeBlock (uint256 blockNumber) public view returns (bool) {
+    if (blockNumber != finalizedHeight + 1) {
+      return false;
+    }
+
     uint256 time = timeOfSubmission[blockNumber];
     // solution too young
     if (time == 0 || block.number <= (time + INSPECTION_PERIOD)) {
+      return false;
+    }
+
+    // got flagged?
+    if (blockSolutions[blockNumber] == bytes32(uint256(-1))) {
       return false;
     }
 

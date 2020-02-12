@@ -164,47 +164,67 @@ module.exports = class Bridge {
 
     // finalize or submit solution, if possible
     {
-      const finalizedHeight = await this.contract.finalizedHeight();
-      // fetch the block after `finalizedHeight`
-      const block = await this.getBlockByNumber(BigInt(finalizedHeight.add(1).toString()));
+      const next = BigInt((await this.contract.finalizedHeight()).add(1).toString());
 
-      // we found the next pending block
-      if (block && block.hash) {
+      // we can do this for the next 256 pending blocks
+      for (let i = 0; i < 256; i++) {
+        const block = await this.getBlockByNumber(next + BigInt(i));
+
+        if (!block || !block.hash) {
+          break;
+        }
+
+        this.log(`forwardChain: checking ${block.number}`);
+
+        // we found the next pending block
         // no solution yet?
         if (!block.submittedSolutionHash) {
-          // a deposit block - resolve directly
-          if (block.isDepositBlock) {
-            await this.directReplay(block.number);
-          } else {
-            if (await this.submitSolution(block.number)) {
-              this.log(`submitted solution for ${block.number}`);
-            }
+          if (await this.submitSolution(block.number)) {
+            this.log(`submitted solution for ${block.number}`);
           }
         } else {
           // ...has a submitted solution
           const mySolution = await block.computeSolution(this, this.badNodeMode);
 
           if (mySolution.hash !== block.submittedSolutionHash) {
-            this.log('Different results, starting dispute...');
-            await this._processDispute(block);
-            return;
+            this.log(`flagSolution: ${block.number}`);
+            let tx = await this.contract.flagSolution(block.number.toString());
+            this.log(tx.hash);
+            tx = await tx.wait();
           }
+        }
+      }
 
-          const canFinalize = await this.contract.canFinalizeBlock(block.number.toString());
-          this.log(`Can finalize pending block: ${block.number}=${canFinalize}`);
-          if (canFinalize) {
-            const ok = await this.finalizeSolution(block.number);
-            this.log(`finalizeSolution: ${ok}`);
-          } else {
-            // cant finalize, maybe the solution is too young?
-            const blockNow = await this.rootProvider.getBlockNumber();
-            const submitted = block.submittedSolutionTime;
-            const diff = blockNow - submitted;
+      // fetch the block after `finalizedHeight`
+      const pendingBlock = await this.getBlockByNumber(next);
+      if (!pendingBlock || !pendingBlock.hash) {
+        return;
+      }
 
-            if (diff > this.INSPECTION_PERIOD) {
-              this.log(`${diff} > INSPECTION_PERIOD but can not finalize block, starting dispute...`);
-              await this._processDispute(block);
-            }
+      if (pendingBlock.submittedSolutionHash) {
+        const mySolution = await pendingBlock.computeSolution(this, this.badNodeMode);
+
+        if (mySolution.hash !== pendingBlock.submittedSolutionHash) {
+          this.log('Different results, starting dispute...');
+          await this._processDispute(pendingBlock);
+          return;
+        }
+
+        const canFinalize = await this.contract.canFinalizeBlock(pendingBlock.number.toString());
+        this.log(`Can finalize pending block: ${pendingBlock.number}=${canFinalize}`);
+
+        if (canFinalize) {
+          const ok = await this.finalizeSolution(pendingBlock.number);
+          this.log(`finalizeSolution: ${ok}`);
+        } else {
+          // cant finalize, maybe the solution is too young?
+          const blockNow = await this.rootProvider.getBlockNumber();
+          const submitted = pendingBlock.submittedSolutionTime;
+          const diff = blockNow - submitted;
+
+          if (diff > this.INSPECTION_PERIOD) {
+            this.log(`${diff} > INSPECTION_PERIOD but can not finalize block, starting dispute...`);
+            await this._processDispute(pendingBlock);
           }
         }
       }
