@@ -7,14 +7,22 @@ const ERC20 = require('./../build/contracts/ERC20.json');
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 
 async function printBalances (bridge, erc20Root, erc20, wallet) {
+  const decimals = await erc20Root.decimals();
+  const layer1Balance = ethers.utils.formatUnits(await erc20Root.balanceOf(wallet.address), decimals);
+  const layer2Balance = ethers.utils.formatUnits(await erc20.balanceOf(wallet.address), decimals);
+  const availableOnBridgeForExit = ethers.utils.formatUnits(
+    await bridge.getERC20Exit(erc20.address, wallet.address),
+    decimals
+  );
+
   console.log(
     {
       token: erc20Root.address,
       symbol: await erc20Root.symbol(),
-      Layer1Balance: (await erc20Root.balanceOf(wallet.address)).toString(),
-      Layer2Balance: (await erc20.balanceOf(wallet.address)).toString(),
-      availableOnBridge: (await erc20.allowance(bridge.address, wallet.address)).toString(),
-      availableOnBridgeForExit: (await bridge.getERC20Exit(erc20.address, wallet.address)).toString(),
+      decimals,
+      layer1Balance,
+      layer2Balance,
+      availableOnBridgeForExit,
     }
   );
 }
@@ -39,9 +47,10 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   const rootProvider = new ethers.providers.JsonRpcProvider(env.ROOT_RPC_URL);
   const provider = new ethers.providers.JsonRpcProvider(env.RPC);
   const wallet = new ethers.Wallet(env.PRIV_KEY, provider);
-  console.log({ account: wallet.address });
-
   const bridgeAddress = await provider.send('web3_clientVersion', []);
+  let decimals;
+
+  console.log({ account: wallet.address });
   console.log({ bridgeAddress });
 
   const bridge = new ethers.Contract(bridgeAddress, BRIDGE_ABI, wallet.connect(rootProvider));
@@ -51,10 +60,15 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   if (env.ERC20) {
     erc20 = new ethers.Contract(env.ERC20, ERC20.abi, wallet);
     erc20Root = erc20.connect(wallet.connect(rootProvider));
+    decimals = await erc20Root.decimals();
+  }
+
+  function parseAmount (val) {
+    return ethers.utils.parseUnits(val, decimals);
   }
 
   if (commando === 'deposit') {
-    const amount = process.argv[3];
+    const amount = parseAmount(process.argv[3]);
     let tx = await erc20Root.approve(bridge.address, amount);
     console.log(`approve txHash: ${tx.hash}`);
     tx = await tx.wait();
@@ -69,6 +83,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
 
   if (commando === 'withdraw') {
     let tx = await bridge.withdraw(erc20Root.address, 0);
+    console.log(tx.hash);
     tx = await tx.wait();
 
     console.log(tx);
@@ -77,7 +92,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
 
   if (commando === 'transfer') {
     const to = process.argv[3];
-    const amount = process.argv[4];
+    const amount = parseAmount(process.argv[4]);
     let tx = await erc20.transfer(to, amount);
     tx = await tx.wait();
     console.log(tx.transactionHash);
@@ -86,7 +101,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
 
   if (commando === 'transferLoop') {
     const to = process.argv[3];
-    const amount = process.argv[4];
+    const amount = parseAmount(process.argv[4]);
     while (1) {
       let tx = await erc20.transfer(to, amount);
       tx = await tx.wait();
@@ -96,8 +111,9 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   }
 
   if (commando === 'exit') {
-    const amount = process.argv[3];
+    const amount = parseAmount(process.argv[3]);
     let tx = await erc20.transfer('0x0000000000000000000000000000000000000000', amount);
+    console.log(tx.hash);
     tx = await tx.wait();
     return;
   }
@@ -105,7 +121,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   if (commando === 'transferFrom') {
     const from = process.argv[3];
     const to = process.argv[4];
-    const amount = process.argv[5];
+    const amount = parseAmount(process.argv[5]);
 
     let tx = await erc20.transferFrom(from, to, amount);
     tx = await tx.wait();
@@ -147,9 +163,11 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   console.log(
     `available commands:
       deposit: <amount>
-      withdraw: exit from bridge
+      withdraw: withdraw from bridge
+      exit: <amount>
       transfer: <to> <amount>
       transferFrom: <from> <to> <amount>
+      transferLoop: <to> <amount>
       balances: print balances
       deploy-erc20: deploys a ERC20 contract
       produce: <count> produce blocks on the root-chain via transfer to self (test geth)
