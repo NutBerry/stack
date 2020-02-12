@@ -18,7 +18,6 @@ contract LEVM is Inventory {
   uint256 constant internal FUNC_SIG_OWNER_OF = 0x52211e;
   uint256 constant internal FUNC_SIG_GET_APPROVED = 0x1812fc;
 
-  // TODO
   function _loadFrom () internal returns (address v) {
     assembly {
       v := sload(0xf0)
@@ -303,13 +302,9 @@ contract LEVM is Inventory {
 
       extcodecopy(target, memPtr, 0, codeSize)
 
-      // TODO
-      // deployment limit 4mil gas
       success := call(gas(), gated, 0, memPtr, codeSize, 12,  20)
       if eq(success, 1) {
         let patchedAddress := mload(0)
-        // TODO
-        // 2 mil execution limit?
         // call the patched contract
         success := callcode(gas(), patchedAddress, 0, add(callData, 32), mload(callData), 0,  0)
       }
@@ -347,7 +342,6 @@ contract LEVM is Inventory {
   function _validateBlock (uint256 offset) internal returns (bool, uint256) {
     // a deposit-block
     if (_isSpecialBlock()) {
-      // TODO: check for overflow?
       address token;
       address owner;
       uint256 value;
@@ -360,6 +354,7 @@ contract LEVM is Inventory {
       if (isERC721(token, value)) {
         _setStorage(_hashERC721(token, value), uint256(owner));
       } else {
+        // Do not care if `newValue` wraps around (malicious ERC20).
         bytes32 receiverKey = _hashERC20(token, owner);
         uint256 newValue = _getStorage(receiverKey) + value;
         _setStorage(receiverKey, newValue);

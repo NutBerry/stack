@@ -5,7 +5,6 @@ import './LEVM.sol';
 // TODO
 // - investigate possible re-entrancy attacks
 // - use state-roots for per-account basis?
-//   mapping(address => bytes32) stateRoots;
 // - Define error codes for those silent revert(0, 0)'s
 // - Improve storage patterns
 contract _Bridge is LEVM {
@@ -36,6 +35,9 @@ contract _Bridge is LEVM {
   event BlockBeacon();
   event NewSolution(uint256 blockNumber, bytes32 solutionHash);
 
+  /// @dev Computes blockHash from calldata excluding function signature.
+  /// @param nonce The block nonce / block number.
+  /// @return blockHash The hash of the nonce + block-data..
   function _blockHash (uint256 nonce) internal pure returns (bytes32 blockHash) {
     assembly {
       let size := sub(calldatasize(), 4)
@@ -53,7 +55,8 @@ contract _Bridge is LEVM {
     }
   }
 
-  /// @dev Callback from the Verifier once a dispute is resolved
+  /// @dev Clears storage slots and moves `finalizedHeight` to `blockNumber`.
+  /// @param blockNumber The number of the block we finalized.
   function _resolveBlock (uint256 blockNumber) internal {
     finalizedHeight = blockNumber;
 
@@ -63,7 +66,7 @@ contract _Bridge is LEVM {
     disputeOffset = 0;
   }
 
-  /// @dev Internal function to check if caller satisfies common conditions.
+  /// @dev Reverts if the caller is not a regular account.
   function _checkCaller () internal {
     // Do not allow contracts
     assembly {

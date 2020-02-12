@@ -2,9 +2,7 @@ pragma solidity ^0.5.2;
 
 import './InventoryStorage.sol';
 
-
 contract Inventory is InventoryStorage {
-
   function _balanceOf (
     address target,
     address owner
