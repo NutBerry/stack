@@ -228,10 +228,33 @@ describe('Bridge/RPC', async function () {
       assert.equal(owner, walletAlice.address);
     });
 
+    it('deposits: debug_directReplay', async () => {
+      const pendingHeight = (await provider.getBlockNumber()) - 1;
+      let finalizedHeight = await bridge.finalizedHeight();
+
+      while (!finalizedHeight.eq(pendingHeight)) {
+        try {
+          await provider.send('debug_directReplay', [finalizedHeight.add(1).toHexString()]);
+        } catch (e) {
+          console.log(e);
+        }
+        finalizedHeight = await bridge.finalizedHeight();
+      }
+    });
+
     it('debug_forwardChain', async () => {
-      await provider.send('debug_forwardChain', []);
-      await provider.send('debug_forwardChain', []);
-      await provider.send('debug_forwardChain', []);
+      const pendingHeight = (await provider.getBlockNumber()) - 1;
+      let finalizedHeight = await bridge.finalizedHeight();
+
+      while (!finalizedHeight.eq(pendingHeight)) {
+        try {
+          await provider.send('debug_forwardChain', []);
+          await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+        } catch (e) {
+          console.log(e);
+        }
+        finalizedHeight = await bridge.finalizedHeight();
+      }
     });
 
     it('Alice: ERC721 transfer', async () => {
@@ -916,6 +939,206 @@ describe('Bridge/RPC', async function () {
           }
         )
       ).wait();
+    });
+  });
+
+  describe('flagSolution', async () => {
+    const raw = '0123456789abcdef';
+    const solution = '';
+    let solutionHash;
+    let blockNumber;
+
+    before(async () => {
+      solutionHash = ethers.utils.keccak256('0x' + solution);
+      blockNumber = (await bridge.finalizedHeight()).add(1);
+    });
+
+    it('submitBlock x 512 - should not throw', async () => {
+      for (let i = 0; i < 512; i++) {
+        const tx = await (
+          await rootWalletAlice.sendTransaction(
+            {
+              to: bridge.address,
+              data: '0x25ceb4b2' + raw,
+              value: await bridge.BOND_AMOUNT(),
+            }
+          )
+        ).wait();
+      }
+    });
+
+    it('submitSolution - should throw', async () => {
+      const invalidSolHash = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+      await assertRevert(bridge.submitSolution(blockNumber, invalidSolHash, { gasLimit: 6000000 }));
+    });
+
+    it('submitSolution x 256', async () => {
+      for (let i = 0; i < 256; i++) {
+        const tx = await (
+          await bridge.submitSolution(blockNumber.add(i), solutionHash)
+        ).wait();
+      }
+    });
+
+    it('submitSolution - should throw', async () => {
+      await assertRevert(bridge.submitSolution(blockNumber.add(256), solutionHash, { gasLimit: 6000000 }));
+    });
+
+    it('produceBlocks', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+    });
+
+    it('flagSolution', async () => {
+      await (await bridge.flagSolution(blockNumber.add(211))).wait();
+    });
+
+    it('finalizeSolution - should throw', async () => {
+      let canFinalize = await bridge.canFinalizeBlock(blockNumber.add(211));
+      assert.equal(canFinalize, false, 'canFinalizeBlock');
+
+      await assertRevert(rootWalletAlice.sendTransaction(
+        {
+          to: bridge.address,
+          data: '0xd5bb8c4b' +
+          blockNumber.add(211).toHexString().replace('0x', '').padStart(64, '0') +
+          solution,
+          gasLimit: 6000000,
+        }
+      ));
+
+      canFinalize = await bridge.canFinalizeBlock(blockNumber.add(211));
+      assert.equal(canFinalize, false, 'canFinalizeBlock');
+    });
+
+    it('canFinalizeBlock', async () => {
+      for (let i = 0; i < 1; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, true, 'canFinalizeBlock');
+      }
+
+      for (let i = 1; i < 512; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, false, 'canFinalizeBlock');
+      }
+    });
+
+    it('finalizeSolution', async () => {
+      for (let i = 0; i < 211; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.ok(canFinalize, 'canFinalizeBlock');
+
+        await (await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xd5bb8c4b' +
+                  blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
+                  solution,
+            gasLimit: 6000000,
+          }
+        )).wait();
+      }
+    });
+
+    it('finalizeSolution - should throw', async () => {
+      await (await rootWalletAlice.sendTransaction(
+        {
+          to: bridge.address,
+          data: bridge.interface.functions.canFinalizeBlock.encode([blockNumber.add(211)]),
+          gasLimit: 6000000,
+        }
+      )).wait();
+
+      for (let i = 211; i < 256; i++) {
+        let canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, false, 'canFinalizeBlock');
+
+        await assertRevert(rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xd5bb8c4b' +
+                  blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
+                  solution,
+            gasLimit: 6000000,
+          }
+        ));
+
+        canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, false, 'canFinalizeBlock');
+      }
+    });
+
+    it('canFinalizeBlock', async () => {
+      for (let i = 0; i < 512; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, false, 'canFinalizeBlock');
+      }
+    });
+
+    it('dispute', async () => {
+      // once the first one is resolved, everything else can be finalized normaly
+      const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(211));
+      assert.equal(canFinalize, false, 'canFinalizeBlock');
+
+      await (await rootWalletAlice.sendTransaction(
+        {
+          to: bridge.address,
+          data: '0xf240f7c3' + raw,
+          gasLimit: 6000000,
+        }
+      )).wait();
+    });
+
+    it('finalizeSolution', async () => {
+      for (let i = 212; i < 256; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.ok(canFinalize, 'canFinalizeBlock');
+
+        await (await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xd5bb8c4b' +
+            blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
+            solution,
+            gasLimit: 6000000,
+          }
+        )).wait();
+      }
+    });
+
+    it('submitSolution x 256', async () => {
+      for (let i = 256; i < 512; i++) {
+        const tx = await (
+          await bridge.submitSolution(blockNumber.add(i), solutionHash)
+        ).wait();
+      }
+    });
+
+    it('produceBlocks', async () => {
+      await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
+    });
+
+    it('finalizeSolution', async () => {
+      for (let i = 256; i < 512; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.ok(canFinalize, 'canFinalizeBlock');
+
+        await (await rootWalletAlice.sendTransaction(
+          {
+            to: bridge.address,
+            data: '0xd5bb8c4b' +
+            blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
+            solution,
+            gasLimit: 6000000,
+          }
+        )).wait();
+      }
+    });
+
+    it('canFinalizeBlock', async () => {
+      for (let i = 0; i < 512; i++) {
+        const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(i));
+        assert.equal(canFinalize, false, 'canFinalizeBlock');
+      }
     });
   });
 

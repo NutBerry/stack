@@ -284,6 +284,11 @@ module.exports = class Block {
       this.transactions[hash].submitted = true;
     }
 
+    if (transactions.length === 0) {
+      this.log('Nothing to submit');
+      return;
+    }
+
     const rawData = transactions.join('');
     const txData = {
       to: bridge.contract.address,
