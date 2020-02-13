@@ -37,6 +37,7 @@ all transactions either through directly finalizing a Block of transactions on-c
 - [ ] Additional signing schemes (ERC712) and BLS aggregates.
 - [ ] NutBerry-node: P2P Connectivity/Exchange via JSON RPC - Simple HTTP (pub-key, node-id) exchange with switch to https.
 - [ ] Recursive Gated Computing.
+- [ ] `evaluation/query`-interface, root-chain contracts can query the Bridge for Layer-2 contract-state.
 
 
 # How to get started

@@ -7,13 +7,9 @@ contract Bridge is _Bridge {
     createdAtBlock = block.number;
   }
 
-  // TODO/TBD
-  // Implement `evaluation`-interface for other contracts
-
   /// @dev Deposit `token` and value (`amountOrId`) into bridge.
-  /// Only the ERC20 standard is supported for now.
+  /// @param token The ERC20/ERC721 token address.
   /// @param amountOrId Amount or the token id.
-  /// @param token The ERC20 token address.
   function deposit (address token, uint256 amountOrId) public {
     // TODO: check for zero amountOrId?
 
@@ -50,7 +46,7 @@ contract Bridge is _Bridge {
   }
 
   /// @dev Withdraw `token` and `tokenId` from bridge.
-  /// `tokenId` is a placeholder until we support ERC721.
+  /// `tokenId` is ignored if `token` is not a ERC721.
   /// @param token address of the token.
   /// @param tokenId ERC721 token id.
   function withdraw (address token, uint256 tokenId) public {
@@ -81,7 +77,9 @@ contract Bridge is _Bridge {
     }
   }
 
-  /// @dev Submit a transaction blob (a block)
+  /// @dev Submit a transaction blob (a block).
+  /// The block-data is expected right after the 4-byte function signature.
+  /// Only regular accounts are allowed to submit blocks.
   function submitBlock () public payable {
     _checkCaller();
 
@@ -99,8 +97,8 @@ contract Bridge is _Bridge {
     emit BlockBeacon();
   }
 
-  /// @dev Register solution given `blockHash`.
-  /// Triggers INSPECTION_PERIOD in number of root blocks
+  /// @dev Register solution for given `blockNumber`.
+  /// Up to 256 solutions can be registered ahead in time.
   function submitSolution (
     uint256 blockNumber,
     bytes32 solutionHash
@@ -131,7 +129,7 @@ contract Bridge is _Bridge {
     blockSolutions[blockNumber] = bytes32(uint256(-1));
   }
 
-  /// @dev Challenge a solution
+  /// @dev Challenge a solution or just verify the block directly.
   function dispute () public {
     // validate the block-data
     uint256 blockNumber = finalizedHeight + 1;
@@ -177,7 +175,8 @@ contract Bridge is _Bridge {
   }
 
   /// @dev Finalize solution and move to the next block.
-  /// Solution must be past the `INSPECTION_PERIOD`.
+  /// Solution must not be bigger than `MAX_SOLUTION_SIZE`.
+  /// `canFinalizeBlock` must return true for `blockNumber`.
   function finalizeSolution (uint256 blockNumber) external {
     bytes32 solutionHash;
     assembly {
@@ -199,8 +198,6 @@ contract Bridge is _Bridge {
     _resolveBlock(blockNumber);
 
     // update our storage
-    // TODO
-    // exits needs to be incremented
     assembly {
       for { let ptr := 36 } lt(ptr, calldatasize()) { } {
         let key := calldataload(ptr)

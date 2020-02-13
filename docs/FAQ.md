@@ -86,7 +86,7 @@ No channel components. I think of three security models that developers/users ca
 
 NutBerry is permission-less and without any governance.
 
-Withdrawing tokens works via doing a transfer()/transferFrom() with a side-chain transaction to `address(0)`.
+Withdrawing tokens works via doing a transfer() with a side-chain transaction to `address(0)`.
 Once this block with that transaction is finalized, the user can call the Bridge on the root-chain and finally transfer the tokens back into his/her control.
 By the way, smart contracts on the side-chain can also exit tokens and the corresponding contract on the root-chain can withdraw them. ✊
 
