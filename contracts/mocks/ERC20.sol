@@ -13,12 +13,6 @@ contract ERC20 {
   mapping (address => uint) public balanceOf;
   mapping (address => mapping (address => uint)) public allowance;
 
-  bool _lock;
-
-  constructor () public {
-    balanceOf[msg.sender] = uint256(-1);
-  }
-
   function deposit () public payable {
     balanceOf[msg.sender] += msg.value;
     emit Deposit(msg.sender, msg.value);
@@ -48,10 +42,6 @@ contract ERC20 {
   function transferFrom (address from, address to, uint256 value) public returns (bool) {
     require(balanceOf[from] >= value);
 
-    if (_lock) {
-      revert();
-    }
-
     if (from != msg.sender && allowance[from][msg.sender] != uint(-1)) {
       require(allowance[from][msg.sender] >= value);
       allowance[from][msg.sender] -= value;
@@ -63,9 +53,5 @@ contract ERC20 {
     emit Transfer(from, to, value);
 
     return true;
-  }
-
-  function lock (bool v) public {
-    _lock = v;
   }
 }

@@ -33,3 +33,7 @@ export RPC=http://localhost:8000
 export PORT=8000
 ./nutberry-node.js
 ```
+
+### Faucet
+
+Take a look at [faucet.js](../scripts/faucet.js). You can instantly get some tokens on Layer-2!

@@ -5,12 +5,10 @@ const Socket = require('net').Socket;
 const ethers = require('ethers');
 const assert = require('assert');
 
-const ERC20_ABI = require('./../build/contracts/ERC20.json').abi;
-const ERC721_ABI = require('./../build/contracts/ERC721.json').abi;
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 const BRIDGE = require('./../build/contracts/Bridge.json');
 
-const ERC20 = require('./../build/contracts/ERC20.json');
+const ERC20 = require('./../build/contracts/TestERC20.json');
 const ERC721 = require('./../build/contracts/ERC721.json');
 const TestContract = require('./../build/contracts/TestContract.json');
 
@@ -150,7 +148,7 @@ describe('Bridge/RPC', async function () {
     erc20Root = await _factory.deploy();
     await erc20Root.deployTransaction.wait();
 
-    erc20 = new ethers.Contract(erc20Root.address, ERC20_ABI, walletAlice);
+    erc20 = new ethers.Contract(erc20Root.address, ERC20.abi, walletAlice);
 
     _factory = new ethers.ContractFactory(
       ERC721.abi,
@@ -159,7 +157,7 @@ describe('Bridge/RPC', async function () {
     );
     erc721Root = await _factory.deploy('FOO', 'FOO');
     await erc721Root.deployTransaction.wait();
-    erc721 = new ethers.Contract(erc721Root.address, ERC721_ABI, walletAlice);
+    erc721 = new ethers.Contract(erc721Root.address, ERC721.abi, walletAlice);
 
     _factory = new ethers.ContractFactory(
       TestContract.abi,
@@ -630,6 +628,20 @@ describe('Bridge/RPC', async function () {
       let tx = await bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 });
       tx = await tx.wait();
       await waitForNewBlock();
+    });
+
+    it('ret = false', async () => {
+      let tx = await erc20Root.ret(false);
+      tx = await tx.wait();
+    });
+
+    it('deposit - should throw', async () => {
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+    });
+
+    it('ret = true', async () => {
+      let tx = await erc20Root.ret(true);
+      tx = await tx.wait();
     });
 
     it('exit transfer', async () => {
