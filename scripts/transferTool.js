@@ -3,7 +3,7 @@
 
 const ethers = require('ethers');
 
-const ERC20 = require('./../build/contracts/ERC20.json');
+const ERC20 = require('./../build/contracts/TestERC20.json');
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 
 async function printBalances (bridge, erc20Root, erc20, wallet) {
@@ -154,8 +154,8 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
       wallet.connect(rootProvider)
     );
     const contract = await _factory.deploy();
+    console.log('deploying...');
     await contract.deployTransaction.wait();
-
     console.log(contract.address);
     return;
   }

@@ -16,6 +16,7 @@ contract Bridge is _Bridge {
     uint256 pending = pendingHeight + 1;
     pendingHeight = pending;
 
+    bool isNFT = isERC721(token, amountOrId);
     bytes32 blockHash;
     assembly {
       // our deposit block
@@ -35,9 +36,14 @@ contract Bridge is _Bridge {
       mstore(0x84, caller())
       mstore(0xa4, address())
       mstore(0xc4, amountOrId)
-      let success := call(gas(), token, 0, 0x80, 0x64, 0, 0)
+      let success := call(gas(), token, 0, 0x80, 0x64, 0, 32)
       if iszero(success) {
         revert(0, 0)
+      }
+      if iszero(isNFT) {
+        if iszero(mload(0)) {
+          revert(0, 0)
+        }
       }
     }
     blocks[pending] = blockHash;

@@ -11,7 +11,7 @@
     "lint": "eslint . && solhint contracts/**/*{.sol,.slb}",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 scripts/geth.js",
-    "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --exit --timeout=900000",
+    "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --bail --exit --timeout=900000",
     "test:evm": "mocha --exit evm/test",
     "coverage": "yarn compile && yarn geth && develatus-apparatus",
     "docker:build": "docker build -t docker.pkg.github.com/nutberry/stack/node:latest ."
