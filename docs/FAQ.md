@@ -10,7 +10,7 @@ The short version:
 
 1. Deposit any ERC-20/ERC-721 token on Layer-1.
 2. Exit ERC-20 via a `transfer()` to `address(0)` on Layer-2.
-  * Exit ERC-721 via a `transferFrom()` to `address(0)` on Layer-2.
+   * Exit ERC-721 via a `transferFrom()` to `address(0)` on Layer-2.
 3. Wait until the block with the above transactions are finalized (on Layer-1).
 4. Withdraw the tokens on Layer-1.
 
@@ -21,7 +21,7 @@ If you are aggregating your own Blocks, then the censorship resistance is the sa
 
 ## Does it limit the amount of computation in a transaction, or the amount of storage in a contract?
 
-It does limit the computation amount and the number of storage writes per transaction, limits are dynamic and depends on the Layer-1 block gas limit.
+It does limit the computation amount and the number of storage-writes per transaction, limits are dynamic and depends on the Layer-1 block gas limit.
 The node and/or the Bridge will provide helper functions in the future to easily validate a transaction.
 
 However, NutBerry can support much greater computational demands in the future if that becomes a necessary for developers.
