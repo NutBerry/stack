@@ -1,5 +1,48 @@
 # FAQ
 
+## Does it support general smart contracts?
+
+Yes, with some [caveats](#contract-restrictions).
+
+## How do tokens move in and out?
+
+The short version:
+
+1. Deposit any ERC-20/ERC-721 token on Layer-1.
+2. Exit ERC-20 via a `transfer()` to `address(0)` on Layer-2.
+   * Exit ERC-721 via a `transferFrom()` to `address(0)` on Layer-2.
+3. Wait until the block with the above transactions are finalized (on Layer-1).
+4. Withdraw the tokens on Layer-1.
+
+## Does it resist censorship?
+
+NutBerry inherits the security from Layer-1.
+If you are aggregating your own Blocks, then the censorship resistance is the same as on Layer-1.
+
+## Does it limit the amount of computation in a transaction, or the amount of storage in a contract?
+
+It does limit the computation amount and the number of storage-writes per transaction, limits are dynamic and depends on the Layer-1 block gas limit.
+The node and/or the Bridge will provide helper functions in the future to easily validate a transaction.
+
+However, NutBerry can support much greater computational demands in the future if that becomes a necessary for developers.
+
+## Can malicious actors slow down the chain’s progress?
+
+Yes, because NutBerry is completely permission-less, bad actors can slow down chain finalization on Layer-1.
+
+## Does it provide trustless finality?
+
+Yes, all state transitions can be validated on Layer-1.
+The chain is secure as long at least one honest node operator participates in the chain's progression.
+
+## Does it rely on special data availability assumptions?
+
+No, all required data is on Layer-1 (the root-chain).
+
+##  Is it available now?
+
+Checkout the [Public Testnet](PublicTestnet.md).
+
 ## Fraud Proof Protocol
 
 The initial version of NutBerry used an interactive verification game (solEVM-enforcer) as fraud proving mechanism.
@@ -27,7 +70,7 @@ What can be verifiable on the root-chain is, of course, a moving/dynamic target.
 The Bridge contract will provide helper functions to help clients implementations to find this out.
 
 * Static-calls to precompiles are allowed.
-* Calls to other contracts are not supported *yet*, except for the common ERC20/ERC721 calls:
+* Calls to other contracts are not supported *yet*, except for the common ERC20/ERC721 *builtin*-calls:
   * balanceOf()
   * approve()
   * allowance()
