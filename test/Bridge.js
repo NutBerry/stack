@@ -5,6 +5,8 @@ const Socket = require('net').Socket;
 const ethers = require('ethers');
 const assert = require('assert');
 
+const { Utils } = require('./../js/index.js');
+
 const BRIDGE_ABI = require('./../js/BridgeAbi.js');
 const BRIDGE = require('./../build/contracts/Bridge.json');
 
@@ -443,6 +445,26 @@ describe('Bridge/RPC', async function () {
       assert.equal(balanceAfter.toString(), balanceBefore.add(4).toString());
     });
 
+    it('Alice: EIP-712 Transaction', async () => {
+      const tx = {
+        to: erc20.address,
+        nonce: await walletAlice.getTransactionCount(),
+        data: erc20.interface.functions.transfer.encode([walletBob.address, 0xffffffff]),
+      };
+      const typedDataHash = Utils.typedDataHash(tx);
+      const { r, s, v } = walletAlice.signingKey.signDigest(typedDataHash);
+      const raw = Utils.encodeTx(Object.assign(tx, { r, s, v: v + 101 }));
+      const txHash = await provider.send('eth_sendRawTransaction', [raw]);
+      const decoded = Utils.parseTransaction(raw);
+      const tmp = await provider.getTransaction(txHash);
+
+      assert.equal(txHash, decoded.hash);
+      assert.equal(txHash, ethers.utils.keccak256(raw));
+      assert.equal(tmp.hash, decoded.hash);
+
+      transactions.push(tmp.hash);
+    });
+
     it('Alice: ERC20 transfer exit', async () => {
       const balance = await erc20.balanceOf(walletAlice.address);
       const tx = await erc20Transfer(ADDRESS_ZERO, balance);
@@ -477,7 +499,7 @@ describe('Bridge/RPC', async function () {
       for (let i = 0; i < transactions.length; i++) {
         const tx = await provider.getTransaction(transactions[i]);
         try {
-          await provider.send('eth_sendRawTransaction', [tx.raw]);
+          await provider.send('eth_sendRawTransaction', [Utils.encodeTx(tx)]);
         } catch (e) {
           assert.equal(e.code, -32000, 'invalid transaction');
         }
@@ -816,23 +838,23 @@ describe('Bridge/RPC', async function () {
   });
 
   describe('Block w/ invalid signature & dup. transactions, solution too big & dispute', async () => {
-    const raw =
-      'fdffffd68ef2f339154b2dbcc8ed12263481688adc9b7900ec467a1a9615' +
-      '46ff24f07129cf95016048b7cebcaaa6c7c31d1e8d06510d9c1748c328de' +
-      '28ba314353d9bc1f0c50b7e6233e589204b49b9d53fb966756ae000000' +
-      '00f8373282bebae9f128b9b3e16816a76a5865c03900e2e4712e409fe6de' +
-      '32d86f84897903011fae40f6d05daa45c955f27c5c40ca362cbbfae42595' +
-      '2fc51661ec2beebea4134d1dff1505f7e570aa614579918e10851c' +
-      '00f8373282bebae9f128b9b3e16816a76a5865c03900e2e4712e409fe6de' +
-      '32d86f84897903011fae40f6d05daa45c955f27c5c40ca362cbbfae42595' +
-      '2fc51661ec2beebea4134d1dff1505f7e570aa614579918e10851c';
-
+    let raw;
     let solution;
     let solutionHash;
     let blockHash;
     let blockNonce;
 
     before(async () => {
+      const tx = {
+        to: erc20.address,
+        nonce: 0,
+        data: '0xff',
+      };
+      const typedDataHash = Utils.typedDataHash(tx);
+      const { r, s, v } = walletAlice.signingKey.signDigest(typedDataHash);
+      const rawTx = Utils.encodeTx(Object.assign(tx, { r, s, v: v + 101 })).replace('0x', '');
+      raw = '1b' + rawTx.substring(2, rawTx.length) + rawTx + rawTx;
+
       const maxSize = await bridge.MAX_SOLUTION_SIZE();
       solution = Buffer.alloc(maxSize + 1).fill(0xff).toString('hex');
       solutionHash = ethers.utils.keccak256('0x' + solution);

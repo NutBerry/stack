@@ -311,30 +311,16 @@ module.exports = class Bridge {
       }
 
       try {
-        let { nonce, to, calldata, len } = Utils.decode(buf, offset);
+        const txLen = Utils.decodeTransactionLength(buf, offset);
+        const rawTx = buf.slice(offset, offset += txLen);
 
-        nonce = Utils.bufToHex(nonce, 0, nonce.length);
-        to = Utils.bufToHex(to, 0, 20);
-        calldata = Utils.bufToHex(calldata, 0, calldata.length);
-        offset += len;
-
-        const r = Utils.bufToHex(buf, offset, offset += 32);
-        const s = Utils.bufToHex(buf, offset, offset += 32);
-        const v = Utils.bufToHex(buf, offset, offset += 1);
-        const tx = {
-          to,
-          nonce: nonce,
-          data: calldata,
-          gasLimit: 0,
-          gasPrice: 0,
-          value: 0,
-          chainId: 0,
-        };
-        const signed = ethers.utils.serializeTransaction(tx, { r, s, v });
-
-        await block.addTransaction(signed, this);
+        try {
+          await block.addTransaction(rawTx, this);
+        } catch (e) {
+          this.log(e);
+        }
       } catch (e) {
-        this.log('TODO - proper tx parsing');
+        this.log('TODO - proper tx parsing', e);
       }
     }
 

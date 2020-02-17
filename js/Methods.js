@@ -155,15 +155,24 @@ module.exports = class Methods {
 
   static async 'eth_getTransactionByHash' (obj, bridge) {
     const txHash = obj.params[0];
-    const tx = bridge.getTransaction(txHash);
+    const { block, tx, txIndex } = bridge.pendingBlock.getBlockOfTransaction(txHash);
 
     if (!tx) {
       return null;
     }
 
+    const transactionIndex = `0x${txIndex.toString(16)}`;
+    const blockHash = block.hash || ZERO_HASH;
+    const blockNumber = `0x${block.number.toString(16)}`;
+
     return {
-      raw: tx.raw,
+      transactionIndex,
+      blockHash,
+      blockNumber,
       from: tx.from,
+      r: tx.r,
+      s: tx.s,
+      v: tx.v,
       value: '0x0',
       to: tx.to,
       hash: txHash,

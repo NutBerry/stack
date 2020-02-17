@@ -77,22 +77,13 @@ module.exports = class Block {
       }
 
       this.log('Rebase:Adding tx');
-      await this.addTransaction(tx.raw, bridge);
+      await this.addTransaction(Utils.encodeTx(tx), bridge);
     }
     this.log(`Rebase:Complete ${this.transactionHashes.length} transactions left`);
   }
 
-  async addTransaction (data, bridge) {
-    const tx = ethers.utils.parseTransaction(data);
-
-    tx.gasPrice = tx.gasPrice.toHexString();
-    tx.gasLimit = tx.gasLimit.toHexString();
-    tx.value = tx.value.toHexString();
-    tx.from = tx.from.toLowerCase();
-    tx.to = tx.to.toLowerCase();
-    tx.raw = data;
-    tx.nonce = BigInt(tx.nonce);
-
+  async addTransaction (rawStringOrArray, bridge) {
+    const tx = Utils.parseTransaction(rawStringOrArray);
     const expectedNonce = this.nonces[tx.from] || BIG_ZERO;
 
     if (this.validateTransaction(tx, expectedNonce)) {
@@ -133,17 +124,17 @@ module.exports = class Block {
       return false;
     }
 
-    if (tx.gasPrice !== '0x00') {
+    if (tx.gasPrice !== 0) {
       this.log('invalid gasPrice', tx);
       return false;
     }
 
-    if (tx.gasLimit !== '0x00') {
+    if (tx.gasLimit !== 0) {
       this.log('invalid gaslimit', tx);
       return false;
     }
 
-    if (tx.value !== '0x00') {
+    if (tx.value !== 0) {
       this.log('invalid value', tx);
       return false;
     }
@@ -258,15 +249,12 @@ module.exports = class Block {
     let payloadLength = 0;
     for (let i = 0; i < hashes.length; i++) {
       const hash = hashes[i];
-      let tx = this.transactions[hash];
+      const tx = this.transactions[hash];
 
       if (tx.submitted) {
         this.log(`Already marked as submitted: ${tx.from}:${tx.nonce}`);
         continue;
       }
-
-      // rsv and so on
-      tx = ethers.utils.parseTransaction(tx.raw);
 
       this.log('Preparing ' + tx.from + ':' + tx.nonce + ':' + tx.hash);
 
