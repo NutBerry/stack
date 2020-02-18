@@ -182,11 +182,12 @@ async function fetch (obj) {
       }
       console.log('waiting for geth');
       await new Promise((resolve) => setTimeout(resolve, 100));
-
     }
-    console.log('Importing and unlocking accounts');
 
-    for (let i = 0; i < 5; i++) {
+    const numAccounts = parseInt(process.env.ACCOUNTS || 1);
+    console.log(`Importing and unlocking ${numAccounts} accounts`);
+
+    for (let i = 0; i < numAccounts; i++) {
       const key = '2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b750120' + i.toString();
       let res = await fetch(
         {
