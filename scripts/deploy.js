@@ -67,7 +67,7 @@ if (!module.parent) {
   (async function () {
     const mnemonic = process.env.MNEMONIC;
     const privKey = process.env.PRIV_KEY;
-    const rpcUrl = process.env.RPC_URL;
+    const rpcUrl = process.env.ROOT_RPC_URL;
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
     const gasPrice = process.env.GAS_GWEI;
     const txOverrides = {

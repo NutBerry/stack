@@ -44,9 +44,23 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     return;
   }
 
+  const wallet = new ethers.Wallet(env.PRIV_KEY);
   const rootProvider = new ethers.providers.JsonRpcProvider(env.ROOT_RPC_URL);
+
+  if (commando === 'deploy-erc20') {
+    const _factory = new ethers.ContractFactory(
+      ERC20.abi,
+      ERC20.bytecode,
+      wallet.connect(rootProvider)
+    );
+    const contract = await _factory.deploy();
+    console.log('deploying...');
+    await contract.deployTransaction.wait();
+    console.log(contract.address);
+    return;
+  }
+
   const provider = new ethers.providers.JsonRpcProvider(env.RPC);
-  const wallet = new ethers.Wallet(env.PRIV_KEY, provider);
   const bridgeAddress = await provider.send('web3_clientVersion', []);
   let decimals;
 
@@ -58,7 +72,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   let erc20;
 
   if (env.ERC20) {
-    erc20 = new ethers.Contract(env.ERC20, ERC20.abi, wallet);
+    erc20 = new ethers.Contract(env.ERC20, ERC20.abi, wallet.connect(provider));
     erc20Root = erc20.connect(wallet.connect(rootProvider));
     decimals = await erc20Root.decimals();
   }
@@ -130,7 +144,7 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
   }
 
   if (commando === 'txcount') {
-    console.log(await wallet.getTransactionCount());
+    console.log(await wallet.connect(provider).getTransactionCount());
     return;
   }
 
@@ -144,19 +158,6 @@ async function printBalances (bridge, erc20Root, erc20, wallet) {
     while (count--) {
       await (await erc20Root.transfer(wallet.address, 1)).wait();
     }
-    return;
-  }
-
-  if (commando === 'deploy-erc20') {
-    const _factory = new ethers.ContractFactory(
-      ERC20.abi,
-      ERC20.bytecode,
-      wallet.connect(rootProvider)
-    );
-    const contract = await _factory.deploy();
-    console.log('deploying...');
-    await contract.deployTransaction.wait();
-    console.log(contract.address);
     return;
   }
 

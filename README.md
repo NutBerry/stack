@@ -33,8 +33,9 @@ all transactions either through directly finalizing a Block of transactions on-c
 - [x] Support arbitrary stateless smart contracts.
 - [x] Support the ERC721 standard.
 - [x] Stateful smart contracts, aka smart contracts with support for storage.
+- [x] Additional Signing scheme: EIP-712.
+- [ ] Additional Signing scheme: BLS aggregates.
 - [ ] State-roots / merkelized state.
-- [ ] Additional signing schemes (ERC712) and BLS aggregates.
 - [ ] NutBerry-node: P2P Connectivity/Exchange via JSON RPC - Simple HTTP (pub-key, node-id) exchange with switch to https.
 - [ ] Recursive Gated Computing.
 - [ ] `evaluation/query`-interface, root-chain contracts can query the Bridge for Layer-2 contract-state.
@@ -57,10 +58,10 @@ You can run the tests with `yarn test`.
 
 You can run it like this:
 ```
-GAS_GWEI=3 RPC_URL=http://localhost:8222 PRIV_KEY=0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501200 ./scripts/deploy.js
+GAS_GWEI=3 ROOT_RPC_URL=http://localhost:8222 PRIV_KEY=0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501200 ./scripts/deploy.js
 ```
 This script also supports passing `MNEMONIC` instead of a private key.
-In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `RPC_URL` allows signing.
+In addition, you can leave both `PRIV_KEY` and `MNEMONIC` if `ROOT_RPC_URL` allows signing.
 
 ### Client
 
