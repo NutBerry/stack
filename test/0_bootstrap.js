@@ -17,8 +17,12 @@ it('start the nodes', async function () {
 
     while (true) {
       try {
-        await ethers.utils.fetchJson('http://localhost:8000', JSON.stringify({ method: 'web3_clientVersion' }));
-        await ethers.utils.fetchJson('http://localhost:8001', JSON.stringify({ method: 'web3_clientVersion' }));
+        const res1 = await ethers.utils.fetchJson('http://localhost:8000', JSON.stringify({ method: 'web3_clientVersion' }));
+        const res2 = await ethers.utils.fetchJson('http://localhost:8001', JSON.stringify({ method: 'web3_clientVersion' }));
+
+        if (res1.error || res2.error) {
+          continue;
+        }
         break;
       } catch (e) {
       }
