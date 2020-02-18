@@ -80,6 +80,9 @@ const compilerInput = {
       },
       */
     },
+    metadata: {
+      'bytecodeHash': 'none',
+    },
     outputSelection: {
       '*': {
         '': [
@@ -100,7 +103,7 @@ const compilerInput = {
   },
 };
 
-function fileCallback (path) {
+function importCallback (path) {
   const source = fs.readFileSync(path).toString();
 
   sources[path] = { content: source };
@@ -108,7 +111,7 @@ function fileCallback (path) {
   return { contents: source };
 }
 
-const output = JSON.parse(solc.compile(JSON.stringify(compilerInput), fileCallback));
+const output = JSON.parse(solc.compile(JSON.stringify(compilerInput), { import: importCallback }));
 
 if (output.errors) {
   output.errors.forEach((obj) => process.stderr.write(obj.formattedMessage));

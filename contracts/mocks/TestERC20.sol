@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.6.2;
 
 import './ERC20.sol';
 
@@ -13,7 +13,7 @@ contract TestERC20 is ERC20 {
     balanceOf[msg.sender] = uint256(-1);
   }
 
-  function transferFrom (address from, address to, uint256 value) public returns (bool) {
+  function transferFrom (address from, address to, uint256 value) override public returns (bool) {
     if (_lock) {
       revert();
     }

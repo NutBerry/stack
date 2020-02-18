@@ -1,7 +1,7 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.6.2;
 
 contract GatedComputing {
-  function () external {
+  fallback () external {
     assembly {
       let ptr := 8192
       for { let i := 0 } lt(i, calldatasize()) { i := add(i, 1) } {

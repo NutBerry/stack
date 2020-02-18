@@ -1607,10 +1607,10 @@ slice-ansi@^2.1.0:
     astral-regex "^1.0.0"
     is-fullwidth-code-point "^2.0.0"
 
-solc@=0.5.16:
-  version "0.5.16"
-  resolved "https://registry.yarnpkg.com/solc/-/solc-0.5.16.tgz#6c8d710a3792ccc79db924606b558a1149b1c603"
-  integrity sha512-weEtRtisJyf+8UjELs7S4ST1KK7UIq6SRB7tpprfJBL9b5mTrZAT7m4gJKi2h6MiBpuSWfnraK8BnkyWzuTMRA==
+solc@=0.6.2:
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/solc/-/solc-0.6.2.tgz#0340520782caef3e8230af6785aba17625415c73"
+  integrity sha512-PIFb/i7HSQXXfsXHlGDR+B2BCaQ+Bx7gpZ7bz+zLz2rPePyxkIJgLmb4rgRKYxEnIp5dKilcjKRPbrz8GNlIHQ==
   dependencies:
     command-exists "^1.2.8"
     commander "3.0.2"
