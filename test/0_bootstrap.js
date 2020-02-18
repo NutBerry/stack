@@ -18,6 +18,7 @@ it('start the nodes', async function () {
     while (true) {
       try {
         await ethers.utils.fetchJson('http://localhost:8000', JSON.stringify({ method: 'ping' }));
+        await ethers.utils.fetchJson('http://localhost:8001', JSON.stringify({ method: 'ping' }));
         break;
       } catch (e) {
       }
