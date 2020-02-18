@@ -600,10 +600,10 @@ ethereumjs-util@=6.1.0:
     safe-buffer "^5.1.1"
     secp256k1 "^3.0.1"
 
-ethers@=4.0.42:
-  version "4.0.42"
-  resolved "https://registry.yarnpkg.com/ethers/-/ethers-4.0.42.tgz#7def83a1f770b84d44cf1c2dfc58b7fd29d1d45d"
-  integrity sha512-2gmmt5x683Xz4QwGDBVJhrdXevVAEr5fnXPGDPou2AKB+zklrirGpl0w1SHBn7Wa9hbL2z6MvP3n7k8Yss2MFg==
+ethers@=4.0.44:
+  version "4.0.44"
+  resolved "https://registry.yarnpkg.com/ethers/-/ethers-4.0.44.tgz#f2608cbc0b4d099b7e10a01c0efc3a1037013b4e"
+  integrity sha512-kCkMPkpYjBkxzqjcuYUfDY7VHDbf5EXnfRPUOazdqdf59SvXaT+w5lgauxLlk1UjxnAiNfeNS87rkIXnsTaM7Q==
   dependencies:
     aes-js "3.0.0"
     bn.js "^4.4.0"
@@ -1494,12 +1494,11 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     inherits "^2.0.1"
 
 rlp@^2.0.0:
-  version "2.2.3"
-  resolved "https://registry.yarnpkg.com/rlp/-/rlp-2.2.3.tgz#7f94aef86cec412df87d5ea1d8cb116a47d45f0e"
-  integrity sha512-l6YVrI7+d2vpW6D6rS05x2Xrmq8oW7v3pieZOJKBEdjuTF4Kz/iwk55Zyh1Zaz+KOB2kC8+2jZlp2u9L4tTzCQ==
+  version "2.2.4"
+  resolved "https://registry.yarnpkg.com/rlp/-/rlp-2.2.4.tgz#d6b0e1659e9285fc509a5d169a9bd06f704951c1"
+  integrity sha512-fdq2yYCWpAQBhwkZv+Z8o/Z4sPmYm1CUq6P7n6lVTOdb949CnqA0sndXal5C1NleSVSZm6q5F3iEbauyVln/iw==
   dependencies:
     bn.js "^4.11.1"
-    safe-buffer "^5.1.1"
 
 run-async@^2.2.0:
   version "2.3.0"
