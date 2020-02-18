@@ -8,7 +8,7 @@ import './LEVM.sol';
 // - Define error codes for those silent revert(0, 0)'s
 // - Improve storage patterns
 contract _Bridge is LEVM {
-  uint16 public constant VERSION = 2;
+  uint16 public constant VERSION = 3;
   uint16 public constant MAX_BLOCK_SIZE = 16192;
   uint16 public constant MAX_SOLUTION_SIZE = 2048;
   // >~14 minutes | in Blocks

@@ -1,4 +1,4 @@
-#!/usr/bin env node
+#!/usr/bin/env node
 'use strict';
 
 const ethers = require('ethers');
@@ -46,5 +46,5 @@ async function deploy () {
   );
 
   // this registers a token
-  // const tx = await (await faucet.sink('0xD7b0AB25D3A4Fc649A60C22D6c67110eC8e49dE0')).wait();
+  // const tx = await (await faucet.sink('0x3D09885E87182933e7798C61472D7AD6581293B5')).wait();
 })();
