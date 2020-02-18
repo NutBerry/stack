@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.6.2;
 
 // TODO
 // once we use state-roots, investigate if decoupling the temporay

@@ -8,9 +8,9 @@
   },
   "main": "js/index.js",
   "scripts": {
-    "lint": "eslint . && solhint contracts/**/*{.sol,.slb}",
+    "lint": "eslint .",
     "compile": "scripts/compile.js",
-    "geth": "RPC_PORT=8222 scripts/geth.js",
+    "geth": "RPC_PORT=8222 ACCOUNTS=1 scripts/geth.js",
     "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --bail --exit --timeout=900000",
     "test:evm": "mocha --exit evm/test",
     "coverage": "yarn compile && yarn geth && develatus-apparatus",
@@ -18,14 +18,13 @@
   },
   "dependencies": {
     "ethereumjs-util": "=6.1.0",
-    "ethers": "=4.0.42",
+    "ethers": "=4.0.44",
     "rustbn.js": "=0.2.0"
   },
   "devDependencies": {
     "develatus-apparatus": "https://github.com/pinkiebell/develatus-apparatus.git#v0.1.5",
     "eslint": "=6.0.1",
     "mocha": "=6.1.4",
-    "solc": "=0.5.16",
-    "solhint": "=2.1.0"
+    "solc": "=0.6.2"
   }
 }

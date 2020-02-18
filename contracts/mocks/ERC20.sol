@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.6.2;
 
 contract ERC20 {
   string public name = 'Wrapped Ether';
@@ -39,7 +39,7 @@ contract ERC20 {
     return transferFrom(msg.sender, to, value);
   }
 
-  function transferFrom (address from, address to, uint256 value) public returns (bool) {
+  function transferFrom (address from, address to, uint256 value) virtual public returns (bool) {
     require(balanceOf[from] >= value);
 
     if (from != msg.sender && allowance[from][msg.sender] != uint(-1)) {

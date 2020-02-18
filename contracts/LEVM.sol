@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.6.2;
 
 import './Inventory.sol';
 
@@ -65,7 +65,7 @@ contract LEVM is Inventory {
     }
   }
 
-  function () external {
+  fallback () external {
     uint256 functionSig;
     assembly {
       functionSig := shr(224, calldataload(0))
