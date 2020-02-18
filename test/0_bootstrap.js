@@ -15,10 +15,12 @@ it('start the nodes', async function () {
     proc.on('exit', () => process.exit(1));
     process.on('exit', () => proc.kill());
 
+    const obj = JSON.stringify({ method: 'web3_clientVersion' });
+
     while (true) {
       try {
-        const res1 = await ethers.utils.fetchJson('http://localhost:8000', JSON.stringify({ method: 'web3_clientVersion' }));
-        const res2 = await ethers.utils.fetchJson('http://localhost:8001', JSON.stringify({ method: 'web3_clientVersion' }));
+        const res1 = await ethers.utils.fetchJson('http://localhost:8000', obj);
+        const res2 = await ethers.utils.fetchJson('http://localhost:8001', obj);
 
         if (res1.error || res2.error) {
           continue;
