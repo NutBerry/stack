@@ -8,7 +8,7 @@
   },
   "main": "js/index.js",
   "scripts": {
-    "lint": "eslint . && solhint contracts/**/*{.sol,.slb}",
+    "lint": "eslint .",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 ACCOUNTS=1 scripts/geth.js",
     "test": "yarn compile && yarn geth && RPC_PORT=8222 mocha --bail --exit --timeout=900000",
@@ -25,7 +25,6 @@
     "develatus-apparatus": "https://github.com/pinkiebell/develatus-apparatus.git#v0.1.5",
     "eslint": "=6.0.1",
     "mocha": "=6.1.4",
-    "solc": "=0.6.2",
-    "solhint": "=2.1.0"
+    "solc": "=0.6.2"
   }
 }
