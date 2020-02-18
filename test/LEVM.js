@@ -19,7 +19,7 @@ describe('LEVM', async function () {
   function testWithNonce (i, calldata, invalidateSig) {
     calldata = calldata || '0x';
 
-    it(`test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
+    it(`RLP: test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
       const obj = {
         to: mock.address,
         nonce: i,
@@ -32,7 +32,45 @@ describe('LEVM', async function () {
       const encoded = Utils.encodeTx(parsed);
       let raw = encoded.replace('0x', '');
       if (invalidateSig) {
-        raw = raw.substring(0, raw.length - 6) + ''.padStart(6, '0');
+        raw = raw.substring(6, raw.length).padStart(6, '0');
+      }
+      const tx = await (await wallet.sendTransaction(
+        {
+          to: mock.address,
+          data: '0xc26ae2a6' + raw,
+          gasLimit: 6000000,
+        }
+      )).wait();
+
+      if (invalidateSig) {
+        assert.equal(tx.logs.length, 0);
+        return;
+      }
+
+      const params = tx.logs[tx.logs.length - 1];
+      assert.equal(obj.data, params.data, 'data should match');
+      assert.equal(_BigInt(params.topics[1]), _BigInt(obj.to), 'to');
+      assert.equal(_BigInt(params.topics[2]), _BigInt(obj.nonce), 'nonce');
+      assert.equal(_BigInt(params.topics[0]), _BigInt(wallet.address), 'from');
+    });
+
+    it(`EIP-712: test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
+      const obj = {
+        to: mock.address,
+        nonce: i,
+        data: calldata,
+        chainId: 0,
+      };
+
+      const typedDataHash = Utils.typedDataHash(obj);
+      const { r, s, v } = wallet.signingKey.signDigest(typedDataHash);
+      const rawTx = Utils.encodeTx(Object.assign(obj, { r, s, v: v + 101 }));
+      const parsed = Utils.parseTransaction(rawTx);
+      const encoded = Utils.encodeTx(parsed);
+
+      let raw = encoded.replace('0x', '');
+      if (invalidateSig) {
+        raw = raw.substring(0, 2) + raw.substring(6, raw.length).padStart(4, '0');
       }
       const tx = await (await wallet.sendTransaction(
         {
@@ -68,7 +106,7 @@ describe('LEVM', async function () {
     await mock.deployTransaction.wait();
   });
 
-  describe('parseTx', async () => {
+  describe('parseTransaction', async () => {
     it('no logs', async () => {
       const raw = ''.padStart(12048, 'fa');
       const tx = await (await wallet.sendTransaction(

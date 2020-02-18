@@ -2,9 +2,27 @@
 
 // TODO
 // cleanup and improve all those helper functions
+const ethers = require('ethers');
+const ABI = new ethers.utils.AbiCoder();
+
+// Transaction(address to,uint256 nonce,bytes data)
+const TRANSACTION_TYPE_HASH = '0x174ead53e7b62242b648b7bb2a954244aaa3af2f55517ec670f9801d2dea09e5';
+// EIP712Domain(string name,string version)
+// const DOMAIN_TYPEHASH = '0xb03948446334eb9b2196d5eb166f69b9d49403eb4a12f36de8d3f9f3cb8e15c3';
+// const DOMAIN_STRUCT_HASH = ethers.utils.keccak256(
+//  ABI.encode(
+//    ['bytes32', 'bytes32', 'bytes32'],
+//    [DOMAIN_TYPEHASH, ethers.utils.keccak256(Buffer.from('NutBerry')), ethers.utils.keccak256(Buffer.from('2'))]
+//  )
+// );
+const DOMAIN_STRUCT_HASH = '0f74ffb7207f25d4ae678c8841affcefd13e0c34b475ef7dd5773791690ba137';
 
 function arrayify (val) {
   const res = [];
+
+  if (typeof val === 'object') {
+    return Array.from(val);
+  }
 
   if (typeof val !== 'string') {
     val = val.toString(16);
@@ -20,14 +38,6 @@ function arrayify (val) {
     res.push(parseInt(val.substring(i, i + 2), 16));
   }
   return res;
-}
-
-function toHex (ary) {
-  return ary.map(
-    function (e) {
-      return e.toString(16).padStart(2, '0');
-    }
-  ).join('');
 }
 
 module.exports = class Utils {
@@ -74,19 +84,21 @@ module.exports = class Utils {
     );
   }
 
-  static encode (nonce, to, calldata) {
-    const nonceBytes = arrayify(nonce);
-    const calldataBytes = arrayify(calldata);
-    let enc = [];
+  static encodeTxToArray (tx) {
+    const nonceBytes = arrayify(tx.nonce);
+    const calldataBytes = arrayify(tx.data);
+    let enc = arrayify(tx.v)
+      .concat(arrayify(tx.r))
+      .concat(arrayify(tx.s));
 
     if (nonceBytes.length > 1 || nonceBytes[0] > 0xde) {
       enc.push(0xff - nonceBytes.length);
       enc = enc.concat(nonceBytes);
     } else {
-      enc = nonceBytes;
+      enc = enc.concat(nonceBytes);
     }
 
-    enc = enc.concat(arrayify(to));
+    enc = enc.concat(arrayify(tx.to));
 
     if (calldataBytes.length >= 0xff) {
       enc.push(0xff);
@@ -99,40 +111,138 @@ module.exports = class Utils {
     return enc.concat(calldataBytes);
   }
 
-  static decode (ary, start) {
-    let nonce;
+  static decodeTransactionLength (bytes, start) {
+    // TODO
+    // check bounds
     let offset = start | 0;
     let orig = offset;
 
-    if (ary[offset] < 0xdf) {
-      nonce = [ary[offset]];
+    // v, r, s
+    offset += 1;
+    offset += 32;
+    offset += 32;
+
+    if (bytes[offset] < 0xdf) {
       offset += 1;
     } else {
-      const l = 0xff - ary[offset];
-      nonce = ary.slice(offset += 1, offset += l);
+      const l = 0xff - bytes[offset];
+      offset += 1;
+      offset += l;
     }
 
-    const to = ary.slice(offset, offset += 20);
+    offset += 20;
 
-    let calldata = [];
-    if (ary[offset] === 0xff) {
-      const l = (ary[offset += 1] << 8) | (ary[offset += 1]);
-      calldata = ary.slice(offset += 1, offset += l);
+    if (bytes[offset] === 0xff) {
+      const l = (bytes[offset += 1] << 8) | (bytes[offset += 1]);
+      offset += 1;
+      offset += l;
     } else {
-      const l = ary[offset];
-      calldata = ary.slice(offset += 1, offset += l);
+      const l = bytes[offset];
+      offset += 1;
+      offset += l;
     }
 
-    return { nonce, to, calldata, len: (offset - orig) || 3 };
+    return (offset - orig) || 87;
+  }
+
+  static decodeTxFromArray (bytes, start) {
+    // TODO
+    // check bounds
+    let offset = start | 0;
+
+    const v = this.bufToHex(bytes, offset, offset += 1);
+    const r = this.bufToHex(bytes, offset, offset += 32);
+    const s = this.bufToHex(bytes, offset, offset += 32);
+
+    let nonce;
+    if (bytes[offset] < 0xdf) {
+      nonce = BigInt(bytes[offset]);
+      offset += 1;
+    } else {
+      const l = 0xff - bytes[offset];
+      nonce = BigInt(this.bufToHex(bytes, offset += 1, offset += l));
+    }
+
+    const to = this.bufToHex(bytes, offset, offset += 20);
+
+    let dataLength = bytes[offset];
+    if (dataLength === 0xff) {
+      dataLength = (bytes[offset += 1] << 8) | (bytes[offset += 1]);
+    }
+    const data = this.bufToHex(bytes, offset += 1, offset += dataLength);
+
+    return { nonce, to, data, r, s, v };
   }
 
   static encodeTx (tx) {
-    const encoded =
-      this.encode(tx.nonce, tx.to, tx.data)
-        .concat(arrayify(tx.r))
-        .concat(arrayify(tx.s))
-        .concat(arrayify(tx.v));
+    const encoded = this.encodeTxToArray(tx);
 
-    return toHex(encoded);
+    return this.bufToHex(encoded, 0, encoded.length);
+  }
+
+  static parseTransaction (rawStringOrArray) {
+    const bytes = arrayify(rawStringOrArray);
+    const v = bytes[0];
+
+    let tx;
+    // that should be our internal encoding
+    if (v === 0x1b || v === 0x1c || v === 0x80 || v === 0x81) {
+      tx = this.decodeTxFromArray(bytes);
+
+      if (v === 0x80 || v === 0x81) {
+        // ERC-712
+        let { r, s, v } = tx;
+        v = parseInt(v, 16) - 101;
+        const typedDataHash = this.typedDataHash(tx);
+
+        tx.from = ethers.utils.recoverAddress(typedDataHash, { r, s, v }).toLowerCase();
+        tx.hash = ethers.utils.keccak256(bytes);
+      } else {
+        const tmp = {
+          to: tx.to,
+          nonce: '0x' + tx.nonce.toString(16),
+          data: tx.data,
+          gasLimit: 0,
+          gasPrice: 0,
+          value: 0,
+          chainId: 0,
+        };
+        // naive way to recover signer and tx hash
+        const signed = ethers.utils.parseTransaction(
+          ethers.utils.serializeTransaction(tmp, tx)
+        );
+        tx.hash = signed.hash;
+        tx.from = signed.from.toLowerCase();
+      }
+
+      tx.value = 0;
+      tx.gasPrice = 0;
+      tx.gasLimit = 0;
+      tx.chainId = 0;
+    } else {
+      tx = ethers.utils.parseTransaction(bytes);
+
+      tx.gasPrice = tx.gasPrice.toNumber();
+      tx.gasLimit = tx.gasLimit.toNumber();
+      tx.value = tx.value.toNumber();
+
+      tx.from = tx.from.toLowerCase();
+      tx.to = tx.to.toLowerCase();
+      tx.nonce = BigInt(tx.nonce);
+    }
+
+    return tx;
+  }
+
+  static typedDataHash (tx) {
+    const data = ABI.encode(
+      ['bytes32', 'address', 'uint256', 'bytes32'],
+      [TRANSACTION_TYPE_HASH, tx.to, tx.nonce.toString(), ethers.utils.keccak256(tx.data)]
+    );
+    const transactionStructHash = ethers.utils.keccak256(data).replace('0x', '');
+
+    return ethers.utils.keccak256(
+      '0x1901' + DOMAIN_STRUCT_HASH + transactionStructHash
+    );
   }
 };
