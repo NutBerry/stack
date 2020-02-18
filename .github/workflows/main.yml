@@ -12,26 +12,27 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
+    container: node:lts-alpine
     steps:
-    - uses: actions/checkout@v1
+    - name: Setup
+      run: |
+        apk add --no-cache git geth
+        yarn global add codecov
+
+    - uses: actions/checkout@v2
 
     - name: Cache node modules
-      uses: actions/cache@preview
+      uses: actions/cache@v1
       with:
         path: node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-node-
 
-    - name: Setup
-      run: |
-        yarn
-        sudo yarn global add codecov
-        wget 'https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.9.9-01744997.tar.gz' -O - | tar -xz
-        sudo mkdir -p /usr/local/bin
-        sudo mv geth-*/geth /usr/local/bin
+    - name: Install
+      run: yarn install
 
     - name: Lint
       run: yarn lint
