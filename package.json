@@ -8,6 +8,7 @@
   },
   "main": "js/index.js",
   "scripts": {
+    "dockerignore": "echo '*' > .dockerignore; for f in $(git ls-files); do echo \"!$f\" >> .dockerignore; done",
     "lint": "eslint .",
     "compile": "scripts/compile.js",
     "geth": "RPC_PORT=8222 ACCOUNTS=1 scripts/geth.js",
