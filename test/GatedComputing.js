@@ -375,4 +375,10 @@ describe('GatedComputing', async function () {
       });
     }
   );
+
+  it('TestContract.transfer - should fail', async () => {
+    const data = testContractInterface.functions.transfer.encode([TOKEN, ALICE, '0xffffffffffffffffffffffff']);
+    const tx = await(await testGatedContract.callWithAddress(testContractPatched, data, { gasLimit })).wait();
+    assert.equal(tx.events[1].topics[0], '0x0000000000000000000000000000000000000000000000000000000000000000');
+  });
 });
