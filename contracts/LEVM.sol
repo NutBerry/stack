@@ -381,12 +381,6 @@ contract LEVM is Inventory {
     return offset;
   }
 
-  function _memLoad (uint256 offset) internal pure returns (uint256 ret) {
-    assembly {
-      ret := calldataload(offset)
-    }
-  }
-
   function _checkGasLimit () internal {
     assembly {
       let limit := div(mul(gaslimit(), 10), 12)
@@ -471,22 +465,17 @@ contract LEVM is Inventory {
     }
 
     uint256[5] memory params;
-    uint256 length;
-    assembly {
-      length := calldatasize()
-    }
-
-    if (offset >= length) {
-      return (true, 0);
-    }
-
     offset = _parseTransaction(offset, params);
 
-    address from = address(uint160(params[0]));
+    bool done;
+    assembly {
+      done := gt(add(offset, 1), calldatasize())
+    }
 
+    address from = address(uint160(params[0]));
     if (from == address(0)) {
       // invalid sig
-      return (offset >= length, offset);
+      return (done, offset);
     }
 
     address to = address(uint160(params[1]));
@@ -496,7 +485,7 @@ contract LEVM is Inventory {
 
     // skip if the transaction nonce is not the expected one.
     if (nonce != _getStorage(bytes32(uint256(from)))) {
-      return (offset >= length, offset);
+      return (done, offset);
     }
     _setStorage(bytes32(uint256(from)), nonce + 1);
 
@@ -558,6 +547,6 @@ contract LEVM is Inventory {
       }
     }
 
-    return (offset >= length, offset);
+    return (done, offset);
   }
 }

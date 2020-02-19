@@ -1,5 +1,13 @@
+*
+!*/
+!*.js
+!*.sol
+!*.slb
+!*.yml
+!*.md
+!package.json
+!yarn.lock
+!Dockerfile
+!LICENSE
 node_modules/
 build/
-nodes.log
-coverage-report.json
-coverage-report.lcov
