@@ -190,7 +190,7 @@ module.exports = class Utils {
       tx = this.decodeTxFromArray(bytes);
 
       if (v === 0x80 || v === 0x81) {
-        // ERC-712
+        // EIP-712
         let { r, s, v } = tx;
         v = parseInt(v, 16) - 101;
         const typedDataHash = this.typedDataHash(tx);
