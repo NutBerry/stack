@@ -1,8 +1,9 @@
 pragma solidity ^0.6.2;
 
 import './_Bridge.sol';
+import './LEVM.sol';
 
-contract Bridge is _Bridge {
+contract Bridge is _Bridge, LEVM {
   constructor () public {
     createdAtBlock = block.number;
   }
@@ -16,7 +17,6 @@ contract Bridge is _Bridge {
     uint256 pending = pendingHeight + 1;
     pendingHeight = pending;
 
-    bool isNFT = isERC721(token, amountOrId);
     bytes32 blockHash;
     assembly {
       // our deposit block
@@ -29,7 +29,13 @@ contract Bridge is _Bridge {
       // 32 byte amount or token id
       mstore(0xc8, amountOrId)
       blockHash := keccak256(0x80, 104)
+    }
 
+    blocks[pending] = blockHash;
+    emit Deposit(token, msg.sender, amountOrId);
+
+    bool isNFT = isERC721(token, amountOrId);
+    assembly {
       // transferFrom
       let sig := shl(224, 0x23b872dd)
       mstore(0x80, sig)
@@ -46,9 +52,6 @@ contract Bridge is _Bridge {
         }
       }
     }
-    blocks[pending] = blockHash;
-
-    emit Deposit(token, msg.sender, amountOrId);
   }
 
   /// @dev Withdraw `token` and `tokenId` from bridge.
@@ -125,7 +128,7 @@ contract Bridge is _Bridge {
   }
 
   /// @dev Flag a solution.
-  function flagSolution (uint256 blockNumber) public {
+  function dispute (uint256 blockNumber) public {
     uint256 tmp = finalizedHeight;
 
     require(blockNumber > tmp);
@@ -135,14 +138,14 @@ contract Bridge is _Bridge {
     blockSolutions[blockNumber] = bytes32(uint256(-1));
   }
 
-  /// @dev Challenge a solution or just verify the block directly.
-  function dispute () public {
+  /// @dev Challenge the solution or just verify the next pending block directly.
+  function challenge () public {
     // validate the block-data
     uint256 blockNumber = finalizedHeight + 1;
     bytes32 blockHash = _blockHash(blockNumber);
     require(blocks[blockNumber] == blockHash);
 
-    uint256 offsetStart = disputeOffset;
+    uint256 offsetStart = challengeOffset;
     if (offsetStart == 0) {
       // function sig
       offsetStart = 4;
@@ -156,7 +159,7 @@ contract Bridge is _Bridge {
       return;
     }
 
-    disputeOffset = nextOffset;
+    challengeOffset = nextOffset;
   }
 
   /// @dev Returns true if `blockNumber` can be finalized, else false.
@@ -171,13 +174,13 @@ contract Bridge is _Bridge {
       return false;
     }
 
-    // got flagged?
+    // got disputed?
     if (blockSolutions[blockNumber] == bytes32(uint256(-1))) {
       return false;
     }
 
-    // if there is no active dispute, then yes
-    return disputeOffset == 0;
+    // if there is no active challenge, then yes
+    return challengeOffset == 0;
   }
 
   /// @dev Finalize solution and move to the next block.
@@ -188,7 +191,7 @@ contract Bridge is _Bridge {
     assembly {
       let size := sub(calldatasize(), 36)
       // MAX_SOLUTION_SIZE
-      if gt(size, 2048) {
+      if gt(size, 8192) {
         revert(0, 0)
       }
       calldatacopy(0x80, 36, size)

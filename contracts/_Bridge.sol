@@ -1,16 +1,14 @@
 pragma solidity ^0.6.2;
 
-import './LEVM.sol';
-
 // TODO
 // - investigate possible re-entrancy attacks
 // - use state-roots for per-account basis?
 // - Define error codes for those silent revert(0, 0)'s
 // - Improve storage patterns
-contract _Bridge is LEVM {
+contract _Bridge {
   uint16 public constant VERSION = 3;
   uint16 public constant MAX_BLOCK_SIZE = 16192;
-  uint16 public constant MAX_SOLUTION_SIZE = 2048;
+  uint16 public constant MAX_SOLUTION_SIZE = 8192;
   // >~14 minutes | in Blocks
   uint16 public constant INSPECTION_PERIOD = 60;
   // 1 ether
@@ -22,8 +20,8 @@ contract _Bridge is LEVM {
   uint256 public finalizedHeight;
   // highest not finalized block
   uint256 pendingHeight;
-  // tracks the block offset in chunked disputes
-  uint256 disputeOffset;
+  // tracks the block offset in chunked challenges
+  uint256 challengeOffset;
   // block number > keccak256(blockhash, block proposer)
   mapping (uint256 => bytes32) blocks;
   // block number > solutionHash
@@ -63,12 +61,11 @@ contract _Bridge is LEVM {
     delete blocks[blockNumber];
     delete blockSolutions[blockNumber];
     delete timeOfSubmission[blockNumber];
-    disputeOffset = 0;
+    challengeOffset = 0;
   }
 
-  /// @dev Reverts if the caller is not a regular account.
+  /// @dev Reverts if the `caller()` is not a regular account.
   function _checkCaller () internal {
-    // Do not allow contracts
     assembly {
       if iszero(
         eq(

@@ -2,17 +2,20 @@
 
 This document represents an overview about the current specification and is work in progress.
 
+# Consensus
+
+* Anyone can submit, challenge and finalize a Block.
+* Submitting a Block requires a bond. The bond is used to repay finalization / challenge gas costs.
+* There can be any number of Block submissions inside a Layer-1 (root-)Block.
+* Blocks are sequenced and are being processed in order.
+* Solutions for submitted blocks can be submitted in advance. This is limited for up to 256 blocks.
+* Solutions can be disputed, disputed blocks needs to verified on Layer-1 once all blocks before the disputed block are finalized.
+* TODO: Blocks can have a `deadline` parameter, the block is skipped if it is not finalized before the `deadline`.
+* TODO: Require a smaller bond on `challenge` that gets burned or returned depending if the solution was indeed wrong or not.
+
 # Bridge parameters
 
-```
-uint16 public constant VERSION = 3;
-uint16 public constant MAX_BLOCK_SIZE = 16192;
-uint16 public constant MAX_SOLUTION_SIZE = 2048;
-// >~14 minutes | in Blocks
-uint16 public constant INSPECTION_PERIOD = 60;
-// 1 ether
-uint256 public constant BOND_AMOUNT = 1000000000000000000;
-```
+Take a look at the definitions [here](contracts/_Bridge.sol).
 
 # Internal Transaction encoding
 
