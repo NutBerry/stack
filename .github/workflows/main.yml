@@ -17,7 +17,7 @@ jobs:
     container: node:lts-alpine
     steps:
     - name: Setup
-      run: apk add --no-cache git geth bash
+      run: apk add --no-cache git geth bash curl
 
     - uses: actions/checkout@v2
 
