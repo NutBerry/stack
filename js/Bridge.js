@@ -14,7 +14,7 @@ const TOPIC_BEACON = '0x98f7f6a06026bc1e4789634d93bff8d19b1c3b070cc440b6a6ae70ba
 // NewSolution(uint256,bytes32)
 const TOPIC_SOLUTION = '0xc2c24b452cabde4a0f2fec2993e5af81879a802cba7b7b42cd2f42e3166a0e0b';
 
-const FUNC_SIG_DISPUTE = '0xf240f7c3';
+const FUNC_SIG_CHALLENGE = '0xd2ef7398';
 const FUNC_SIG_FINALIZE = '0xd5bb8c4b';
 const BIG_ZERO = BigInt(0);
 
@@ -187,8 +187,8 @@ module.exports = class Bridge {
           const mySolution = await block.computeSolution(this, this.badNodeMode);
 
           if (mySolution.hash !== block.submittedSolutionHash) {
-            this.log(`flagSolution: ${block.number}`);
-            let tx = await this.contract.flagSolution(block.number.toString());
+            this.log(`dispute: ${block.number}`);
+            let tx = await this.contract.dispute(block.number.toString());
             this.log(tx.hash);
             tx = await tx.wait();
           }
@@ -205,8 +205,8 @@ module.exports = class Bridge {
         const mySolution = await pendingBlock.computeSolution(this, this.badNodeMode);
 
         if (mySolution.hash !== pendingBlock.submittedSolutionHash) {
-          this.log('Different results, starting dispute...');
-          await this._processDispute(pendingBlock);
+          this.log('Different results, starting challenge...');
+          await this._processChallenge(pendingBlock);
           return;
         }
 
@@ -223,8 +223,8 @@ module.exports = class Bridge {
           const diff = blockNow - submitted;
 
           if (diff > this.INSPECTION_PERIOD) {
-            this.log(`${diff} > INSPECTION_PERIOD but can not finalize block, starting dispute...`);
-            await this._processDispute(pendingBlock);
+            this.log(`${diff} > INSPECTION_PERIOD but can not finalize block, starting challenge...`);
+            await this._processChallenge(pendingBlock);
           }
         }
       }
@@ -472,18 +472,18 @@ module.exports = class Bridge {
       return false;
     }
 
-    await this._processDispute(block);
+    await this._processChallenge(block);
 
     return true;
   }
 
-  async _processDispute (block) {
-    const TAG = `Bridge.dispute(${block.number})`;
+  async _processChallenge (block) {
+    const TAG = `Bridge.challenge(${block.number})`;
     const rootBlock = await this.rootProvider.getBlock('latest');
     const gasLimit = rootBlock.gasLimit.mul(10).div(11);
     const txData = {
       to: this.contract.address,
-      data: block.raw.replace('0x', FUNC_SIG_DISPUTE),
+      data: block.raw.replace('0x', FUNC_SIG_CHALLENGE),
       gasLimit,
     };
     const cBlock = await this.contract.finalizedHeight();

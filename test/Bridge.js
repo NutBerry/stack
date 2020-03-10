@@ -19,6 +19,7 @@ const PRIV_KEY_ALICE = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbf
 const PRIV_KEY_BOB = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501204';
 const PRIV_KEY_CHARLIE = '0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501205';
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
+const GAS_LIMIT = 6000000;
 
 async function assertRevert (tx) {
   let reverted = false;
@@ -552,7 +553,7 @@ describe('Bridge/RPC', async function () {
       assert.equal(owner, walletBob.address, 'exit owner');
 
       // try to exit bob's nft via alice
-      await assertRevert(bridge.withdraw(erc721.address, tokenId, { gasLimit: 6000000 }));
+      await assertRevert(bridge.withdraw(erc721.address, tokenId, { gasLimit: GAS_LIMIT }));
 
       let tx = await bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId);
       tx = await tx.wait();
@@ -564,7 +565,7 @@ describe('Bridge/RPC', async function () {
     it('Bob: Exit invalid ERC721', async () => {
       const tokenId = mintedTokens + 1000;
 
-      await assertRevert(bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId, { gasLimit: 6000000 }));
+      await assertRevert(bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId, { gasLimit: GAS_LIMIT }));
     });
   }
 
@@ -604,7 +605,7 @@ describe('Bridge/RPC', async function () {
           {
             to: testContract.address,
             data: '0xf2357055' + bridge.address.replace('0x', '').padStart(64, '0') + '25ceb4b2'.padEnd(512, 'f'),
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
@@ -638,7 +639,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('deposit - should throw', async () => {
-      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: GAS_LIMIT }));
     });
 
     it('unlock', async () => {
@@ -647,7 +648,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('deposit - should not throw', async () => {
-      let tx = await bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 });
+      let tx = await bridge.deposit(erc20Root.address, 1, { gasLimit: GAS_LIMIT });
       tx = await tx.wait();
       await waitForNewBlock();
     });
@@ -658,7 +659,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('deposit - should throw', async () => {
-      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: 6000000 }));
+      await assertRevert(bridge.deposit(erc20Root.address, 1, { gasLimit: GAS_LIMIT }));
     });
 
     it('ret = true', async () => {
@@ -699,7 +700,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('withdraw - should throw', async () => {
-      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 }));
+      await assertRevert(bridge.withdraw(erc20Root.address, 0, { gasLimit: GAS_LIMIT }));
     });
 
     it('unlock', async () => {
@@ -708,7 +709,7 @@ describe('Bridge/RPC', async function () {
     });
 
     it('withdraw - should not throw', async () => {
-      let tx = await bridge.withdraw(erc20Root.address, 0, { gasLimit: 6000000 });
+      let tx = await bridge.withdraw(erc20Root.address, 0, { gasLimit: GAS_LIMIT });
       tx = await tx.wait();
     });
   });
@@ -746,7 +747,7 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2' + raw,
             value: 1,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
@@ -760,7 +761,7 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2' + (new Array(72).fill('cc')).join(''),
             value: await bridge.BOND_AMOUNT(),
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
@@ -774,7 +775,7 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2' + ''.padStart((blockSize * 2) + 2, 'ac'),
             value: await bridge.BOND_AMOUNT(),
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
@@ -787,7 +788,7 @@ describe('Bridge/RPC', async function () {
             to: bridge.address,
             data: '0x25ceb4b2' + raw,
             value: await bridge.BOND_AMOUNT(),
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       ).wait();
@@ -796,7 +797,7 @@ describe('Bridge/RPC', async function () {
     it('submitSolution - wrong blockNumber', async () => {
       await assertRevert(
         bridge.submitSolution('0x10000000000000000000000000000000000000000000000000000000000000cc', solutionHash,
-          { gasLimit: 6000000 }
+          { gasLimit: GAS_LIMIT }
         )
       );
     });
@@ -813,7 +814,7 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0xd5bb8c4b' + blockNonce + solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
@@ -830,14 +831,14 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0xd5bb8c4b' + blockNonce + solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       ).wait();
     });
   });
 
-  describe('Block w/ invalid signature & dup. transactions, solution too big & dispute', async () => {
+  describe('Block w/ invalid signature & dup. transactions, solution too big & challenge', async () => {
     let raw;
     let solution;
     let solutionHash;
@@ -892,19 +893,19 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0xd5bb8c4b' + blockNonce + solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
     });
 
-    it('dispute', async () => {
+    it('challenge', async () => {
       for (let i = 0; i < 3; i++) {
         const tx = await (
           await rootWalletAlice.sendTransaction(
             {
               to: bridge.address,
-              data: '0xf240f7c3' + raw,
+              data: '0xd2ef7398' + raw,
             }
           )
         ).wait();
@@ -912,7 +913,7 @@ describe('Bridge/RPC', async function () {
     });
   });
 
-  describe('Invalid Block, solution & dispute', async () => {
+  describe('Invalid Block, solution & challenge', async () => {
     const raw = '0123456789abcdef';
     let solution;
     let solutionHash;
@@ -958,25 +959,25 @@ describe('Bridge/RPC', async function () {
           {
             to: bridge.address,
             data: '0xd5bb8c4b' + blockNonce + solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )
       );
     });
 
-    it('dispute', async () => {
+    it('challenge', async () => {
       const tx = await (
         await rootWalletAlice.sendTransaction(
           {
             to: bridge.address,
-            data: '0xf240f7c3' + raw,
+            data: '0xd2ef7398' + raw,
           }
         )
       ).wait();
     });
   });
 
-  describe('flagSolution', async () => {
+  describe('dispute', async () => {
     const raw = '0123456789abcdef';
     const solution = '';
     let solutionHash;
@@ -1003,7 +1004,7 @@ describe('Bridge/RPC', async function () {
 
     it('submitSolution - should throw', async () => {
       const invalidSolHash = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-      await assertRevert(bridge.submitSolution(blockNumber, invalidSolHash, { gasLimit: 6000000 }));
+      await assertRevert(bridge.submitSolution(blockNumber, invalidSolHash, { gasLimit: GAS_LIMIT }));
     });
 
     it('submitSolution x 256', async () => {
@@ -1015,15 +1016,15 @@ describe('Bridge/RPC', async function () {
     });
 
     it('submitSolution - should throw', async () => {
-      await assertRevert(bridge.submitSolution(blockNumber.add(256), solutionHash, { gasLimit: 6000000 }));
+      await assertRevert(bridge.submitSolution(blockNumber.add(256), solutionHash, { gasLimit: GAS_LIMIT }));
     });
 
     it('produceBlocks', async () => {
       await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()) + 1);
     });
 
-    it('flagSolution', async () => {
-      await (await bridge.flagSolution(blockNumber.add(211))).wait();
+    it('dispute', async () => {
+      await (await bridge.dispute(blockNumber.add(211))).wait();
     });
 
     it('finalizeSolution - should throw', async () => {
@@ -1036,7 +1037,7 @@ describe('Bridge/RPC', async function () {
           data: '0xd5bb8c4b' +
           blockNumber.add(211).toHexString().replace('0x', '').padStart(64, '0') +
           solution,
-          gasLimit: 6000000,
+          gasLimit: GAS_LIMIT,
         }
       ));
 
@@ -1067,7 +1068,7 @@ describe('Bridge/RPC', async function () {
             data: '0xd5bb8c4b' +
                   blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
                   solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )).wait();
       }
@@ -1078,7 +1079,7 @@ describe('Bridge/RPC', async function () {
         {
           to: bridge.address,
           data: bridge.interface.functions.canFinalizeBlock.encode([blockNumber.add(211)]),
-          gasLimit: 6000000,
+          gasLimit: GAS_LIMIT,
         }
       )).wait();
 
@@ -1092,7 +1093,7 @@ describe('Bridge/RPC', async function () {
             data: '0xd5bb8c4b' +
                   blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
                   solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         ));
 
@@ -1108,7 +1109,7 @@ describe('Bridge/RPC', async function () {
       }
     });
 
-    it('dispute', async () => {
+    it('challenge', async () => {
       // once the first one is resolved, everything else can be finalized normaly
       const canFinalize = await bridge.canFinalizeBlock(blockNumber.add(211));
       assert.equal(canFinalize, false, 'canFinalizeBlock');
@@ -1116,8 +1117,8 @@ describe('Bridge/RPC', async function () {
       await (await rootWalletAlice.sendTransaction(
         {
           to: bridge.address,
-          data: '0xf240f7c3' + raw,
-          gasLimit: 6000000,
+          data: '0xd2ef7398' + raw,
+          gasLimit: GAS_LIMIT,
         }
       )).wait();
     });
@@ -1133,7 +1134,7 @@ describe('Bridge/RPC', async function () {
             data: '0xd5bb8c4b' +
             blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
             solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )).wait();
       }
@@ -1162,7 +1163,7 @@ describe('Bridge/RPC', async function () {
             data: '0xd5bb8c4b' +
             blockNumber.add(i).toHexString().replace('0x', '').padStart(64, '0') +
             solution,
-            gasLimit: 6000000,
+            gasLimit: GAS_LIMIT,
           }
         )).wait();
       }
