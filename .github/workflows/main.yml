@@ -17,9 +17,7 @@ jobs:
     container: node:lts-alpine
     steps:
     - name: Setup
-      run: |
-        apk add --no-cache git geth
-        yarn global add codecov
+      run: apk add --no-cache git geth
 
     - uses: actions/checkout@v2
 
@@ -43,6 +41,8 @@ jobs:
     - name: Coverage
       run: yarn coverage
 
-    - name: Upload coverage to Codecov
+    - name: Upload Coverage
       if: success()
-      run: codecov -t ${{ secrets.CODECOV_TOKEN }} -B ${{ github.ref }} -f coverage-report.json
+      uses: codecov/codecov-action@v1
+      with:
+        file: coverage-report.json
