@@ -15,7 +15,7 @@ This document represents an overview about the current specification and is work
 
 # Bridge parameters
 
-Take a look at the definitions [here](contracts/_Bridge.sol).
+Take a look at the definitions [here](../contracts/_Bridge.sol).
 
 # Internal Transaction encoding
 
