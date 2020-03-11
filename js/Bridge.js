@@ -110,23 +110,37 @@ module.exports = class Bridge {
     // sync
     this.log('syncing...');
     this.eventFilter.fromBlock = createdAtBlock;
+
+    const quantityStepping = 100;
+    let fetchQuantity = 100;
     for (let i = createdAtBlock; i <= latestBlock;)  {
-      let toBlock = i + 100;
+      let toBlock = i + fetchQuantity;
       if (toBlock > latestBlock) {
         toBlock = latestBlock;
       }
       this.eventFilter.toBlock = toBlock;
       this.log(`from: ${this.eventFilter.fromBlock} to: ${this.eventFilter.toBlock} / ${latestBlock}`);
 
-      const res = await this.rootProvider.getLogs(this.eventFilter);
-      const len = res.length;
+      let res;
+      try {
+        res = await this.rootProvider.getLogs(this.eventFilter);
+      } catch (e) {
+        fetchQuantity -= quantityStepping;
+        if (fetchQuantity < 1) {
+          fetchQuantity = 1;
+        }
+        this.log(`Error while fetching events. Reducing to fetchQuantity = ${fetchQuantity}`);
+        continue;
+      }
 
+      const len = res.length;
       for (let i = 0; i < len; i++) {
         await this._dispatchEvent(res[i]);
       }
 
       i = toBlock + 1;
       this.eventFilter.fromBlock = i;
+      fetchQuantity += quantityStepping;
     }
 
     this.ready = true;
