@@ -19,7 +19,7 @@ jobs:
     - name: Setup
       run: apk add --no-cache git geth bash curl
 
-    - uses: actions/checkout@master
+    - uses: actions/checkout@80602faf
 
     - name: Cache node modules
       uses: actions/cache@v1

@@ -1,6 +1,5 @@
 'use strict';
 
-//////////
 const ethers = require('ethers');
 
 const Block = require('./Block.js');
