@@ -7,6 +7,7 @@ FROM base AS deps
 ARG BUILD_DEPS="git"
 RUN apk add --no-cache $BUILD_DEPS
 COPY package.json yarn.lock /opt/
+WORKDIR /opt
 RUN yarn install --production --frozen-lockfile --ignore-optional --verbose
 
 FROM base AS release
