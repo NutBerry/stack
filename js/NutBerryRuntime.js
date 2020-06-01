@@ -24,13 +24,13 @@ module.exports = class NutBerryRuntime extends EVMRuntime {
     const len = args.pop().toNumber();
 
     let ll = len;
-    if (ll > runState.memory.length) {
+    if (offset + ll > runState.memory.length) {
       ll = runState.memory.length;
     }
 
     let data = '0x';
     for (let i = 0; i < ll; i++) {
-      data += runState.memory[offset + i].toString(16).padStart(2, '0');
+      data += (runState.memory[offset + i] | 0).toString(16).padStart(2, '0');
     }
     data = data.padEnd((len * 2) + 2, '0');
 

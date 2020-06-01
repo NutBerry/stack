@@ -82,7 +82,8 @@ module.exports = class Inventory {
     const newValue = toStr(oldValue + BigInt(value), 64);
 
     this.storageKeys[k] = `0x00${newValue}`;
-    this.storage[k] = `0x${newValue}`;
+    // Don't add this to storage. It's only relevant to the Bridge anyway.
+    // this.storage[k] = `0x${newValue}`;
   }
 
   _addERC721Exit (target, tokenId, owner) {
@@ -95,7 +96,8 @@ module.exports = class Inventory {
     const value = toStr(owner, 64);
 
     this.storageKeys[k] = `0x01${value}`;
-    this.storage[k] = `0x${value}`;
+    // Don't add this to storage. It's only relevant to the Bridge anyway.
+    // this.storage[k] = `0x${value}`;
   }
 
   _hashERC20 (target, owner) {

@@ -19,14 +19,16 @@ describe('LEVM', async function () {
   function testWithNonce (i, calldata, invalidateSig) {
     calldata = calldata || '0x';
 
-    it(`RLP: test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
-      const obj = {
-        to: mock.address,
-        nonce: i,
-        data: calldata,
-        chainId: 0,
-      };
+    const obj = {
+      to: '0x387d9e1871ef59e52a1d72c68522c41b767d6621',
+      nonce: i,
+      data: calldata,
+      chainId: 0,
+      gasPrice: 0,
+      gasLimit: 0,
+    };
 
+    it(`RLP: test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
       const signed = await wallet.sign(obj);
       const parsed = ethers.utils.parseTransaction(signed);
       const encoded = Utils.encodeTx(parsed);
@@ -43,7 +45,7 @@ describe('LEVM', async function () {
       )).wait();
 
       if (invalidateSig) {
-        assert.equal(tx.logs.length, 0);
+        assert.equal(tx.logs.length, 0, 'number of logs');
         return;
       }
 
@@ -55,13 +57,6 @@ describe('LEVM', async function () {
     });
 
     it(`EIP-712: test w/ nonce = 0x${i.toString(16)} / data size = ${(calldata.length - 2) / 2}`, async () => {
-      const obj = {
-        to: mock.address,
-        nonce: i,
-        data: calldata,
-        chainId: 0,
-      };
-
       const typedDataHash = Utils.typedDataHash(obj);
       const { r, s, v } = wallet.signingKey.signDigest(typedDataHash);
       const rawTx = Utils.encodeTx(Object.assign(obj, { r, s, v: v + 101 }));
@@ -81,7 +76,7 @@ describe('LEVM', async function () {
       )).wait();
 
       if (invalidateSig) {
-        assert.equal(tx.logs.length, 0);
+        assert.equal(tx.logs.length, 0, 'number of logs');
         return;
       }
 

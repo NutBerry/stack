@@ -38,6 +38,10 @@ module.exports = class Methods {
     return bridge.forwardChain();
   }
 
+  static 'debug_storage' (obj, bridge) {
+    return bridge.pendingBlock.inventory.storage;
+  }
+
   static 'web3_clientVersion' (obj, bridge) {
     return bridge.contract.address;
   }
