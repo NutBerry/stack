@@ -125,6 +125,35 @@ describe('Bridge/RPC', async function () {
     return tx;
   }
 
+  function doChallenge () {
+    it('debug_directReplay', async () => {
+      const pendingHeight = (await provider.getBlockNumber()) - 1;
+      let finalizedHeight = await bridge.finalizedHeight();
+
+      while (!finalizedHeight.eq(pendingHeight)) {
+        try {
+          await provider.send('debug_directReplay', [finalizedHeight.add(1).toHexString()]);
+        } catch (e) {
+          console.log(e);
+        }
+        finalizedHeight = await bridge.finalizedHeight();
+      }
+    });
+  }
+
+  async function debugStorage () {
+    it('debug_storage', async () => {
+      const storage = await provider.send('debug_storage', []);
+
+      for (const key in storage) {
+        const onChainValue = await rootProvider.send('eth_getStorageAt', [bridge.address, key, 'latest']);
+        const clientValue = storage[key];
+
+        assert.equal(onChainValue, clientValue, 'storage value');
+      }
+    });
+  }
+
   before('Prepare contracts', async () => {
     provider = new ethers.providers.JsonRpcProvider('http://localhost:8000');
     nodes = [provider, new ethers.providers.JsonRpcProvider('http://localhost:8001')];
@@ -177,26 +206,26 @@ describe('Bridge/RPC', async function () {
     }
   });
 
-  function doRound () {
+  function doRound (skipFinalizeDeposits) {
     it('Alice: ERC20 deposit', async () => {
       rounds++;
 
-      const value = '0xffff';
+      const amount = '0xffff';
       let balance = await erc20.balanceOf(walletAlice.address);
 
       assert.equal(balance.toString(), '0', 'balance');
 
-      let tx = await erc20Root.approve(bridge.address, 0xfffffffffff);
+      let tx = await erc20Root.approve(bridge.address, amount);
       tx = await tx.wait();
       assert.equal(tx.logs.length, 1, 'logs emitted');
 
-      tx = await bridge.deposit(erc20Root.address, value);
+      tx = await bridge.deposit(erc20Root.address, amount);
       tx = await tx.wait();
 
       await waitForValueChange(balance, () => erc20.balanceOf(walletAlice.address));
 
       balance = await erc20.balanceOf(walletAlice.address);
-      assert.equal(balance.toHexString(), value, 'balance');
+      assert.equal(balance.toHexString(), amount, 'balance');
     });
 
     it('Alice: ERC721 deposit', async () => {
@@ -229,34 +258,36 @@ describe('Bridge/RPC', async function () {
       assert.equal(owner, walletAlice.address);
     });
 
-    it('deposits: debug_directReplay', async () => {
-      const pendingHeight = (await provider.getBlockNumber()) - 1;
-      let finalizedHeight = await bridge.finalizedHeight();
+    if (!skipFinalizeDeposits) {
+      it('deposits: debug_directReplay', async () => {
+        const pendingHeight = (await provider.getBlockNumber()) - 1;
+        let finalizedHeight = await bridge.finalizedHeight();
 
-      while (!finalizedHeight.eq(pendingHeight)) {
-        try {
-          await provider.send('debug_directReplay', [finalizedHeight.add(1).toHexString()]);
-        } catch (e) {
-          console.log(e);
+        while (!finalizedHeight.eq(pendingHeight)) {
+          try {
+            await provider.send('debug_directReplay', [finalizedHeight.add(1).toHexString()]);
+          } catch (e) {
+            console.log(e);
+          }
+          finalizedHeight = await bridge.finalizedHeight();
         }
-        finalizedHeight = await bridge.finalizedHeight();
-      }
-    });
+      });
 
-    it('debug_forwardChain', async () => {
-      const pendingHeight = (await provider.getBlockNumber()) - 1;
-      let finalizedHeight = await bridge.finalizedHeight();
+      it('debug_forwardChain', async () => {
+        const pendingHeight = (await provider.getBlockNumber()) - 1;
+        let finalizedHeight = await bridge.finalizedHeight();
 
-      while (!finalizedHeight.eq(pendingHeight)) {
-        try {
-          await provider.send('debug_forwardChain', []);
-          await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
-        } catch (e) {
-          console.log(e);
+        while (!finalizedHeight.eq(pendingHeight)) {
+          try {
+            await provider.send('debug_forwardChain', []);
+            await produceBlocks(parseInt(await bridge.INSPECTION_PERIOD()));
+          } catch (e) {
+            console.log(e);
+          }
+          finalizedHeight = await bridge.finalizedHeight();
         }
-        finalizedHeight = await bridge.finalizedHeight();
-      }
-    });
+      });
+    }
 
     it('Alice: ERC721 transfer', async () => {
       const tx = await erc721TransferFrom(walletAlice.address, walletBob.address, mintedTokens - 1);
@@ -277,16 +308,18 @@ describe('Bridge/RPC', async function () {
 
     it('TestContract.testERC20', async () => {
       const balanceBefore = await erc20.balanceOf(walletAlice.address);
+
       let tx = await erc20.approve(testContract.address, '0xff');
       tx = await tx.wait();
       assert.equal(tx.logs.length, 1, 'logs emitted');
 
       tx = await testContract.testERC20(erc20.address, walletAlice.address, testContract.address, 0);
       tx = await tx.wait();
+
       const balanceAfter = await erc20.balanceOf(walletAlice.address);
 
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() - 1, 'balance of Alice');
-      assert.equal(tx.logs.length, 7, 'logs emitted');
+      assert.equal(tx.logs.length, 37, 'logs emitted');
     });
 
     it('TestContract.testERC721', async () => {
@@ -382,9 +415,10 @@ describe('Bridge/RPC', async function () {
 
     it('Alice: ERC20 transfer', async () => {
       const balanceBefore = await erc20.balanceOf(walletBob.address);
-      let tx = await erc20Transfer(walletBob.address, '0x01');
 
+      const tx = await erc20Transfer(walletBob.address, '0x01');
       assert.equal(tx.from, walletAlice.address);
+
       const balanceAfter = await erc20.balanceOf(walletBob.address);
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() + 0x01, 'balance of Bob');
     });
@@ -403,7 +437,7 @@ describe('Bridge/RPC', async function () {
 
     it('Alice: ERC20 transfer to TestContract', async () => {
       const balanceBefore = await erc20.balanceOf(testContract.address);
-      let tx = await erc20Transfer(testContract.address, 2);
+      const tx = await erc20Transfer(testContract.address, 2);
       assert.equal(tx.from, walletAlice.address);
       const balanceAfter = await erc20.balanceOf(testContract.address);
       assert.equal(balanceAfter.toNumber(), balanceBefore.toNumber() + 2, 'balance of TestContract');
@@ -512,20 +546,20 @@ describe('Bridge/RPC', async function () {
     });
   }
 
-  function doExit () {
+  function doExit (r) {
     it('Alice: Exit', async () => {
-      const value = '0xffbd';
+      const value = (0xffbd * r).toString();
       const balanceBefore = await erc20Root.balanceOf(walletAlice.address);
       const exitBalance = await bridge.getERC20Exit(erc20Root.address, walletAlice.address);
 
-      assert.equal(exitBalance.toHexString(), value, 'exitBalance');
+      assert.equal(exitBalance.toString(), value, 'exitBalance');
 
       let tx = await bridge.withdraw(erc20Root.address, value);
       tx = await tx.wait();
 
       const balanceAfter = await erc20Root.balanceOf(walletAlice.address);
 
-      assert.equal(balanceAfter.toHexString(), balanceBefore.add(value).toHexString(), 'Alice root-chain balance');
+      assert.equal(balanceAfter.toString(), balanceBefore.add(value).toString(), 'Alice root-chain balance');
     });
 
     it('Bob: Exit', async () => {
@@ -565,7 +599,9 @@ describe('Bridge/RPC', async function () {
     it('Bob: Exit invalid ERC721', async () => {
       const tokenId = mintedTokens + 1000;
 
-      await assertRevert(bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId, { gasLimit: GAS_LIMIT }));
+      await assertRevert(
+        bridge.connect(rootWalletBob).withdraw(erc721.address, tokenId, { gasLimit: GAS_LIMIT })
+      );
     });
   }
 
@@ -1189,6 +1225,32 @@ describe('Bridge/RPC', async function () {
     });
   });
 
+  describe('Round 0 - 2x doRound and on-chain challenge(s)', async () => {
+    doRound(true);
+
+    it('submitBlock', async () => {
+      await tryHaltSecondaryNodes(true);
+      await provider.send('debug_submitBlock', []);
+      await waitForNewBlock();
+    });
+
+    doRound(true);
+
+    it('submitBlock', async () => {
+      await provider.send('debug_submitBlock', []);
+      await waitForNewBlock();
+    });
+
+    doChallenge();
+
+    it('resume nodes', async () => {
+      await tryHaltSecondaryNodes(false);
+    });
+
+    debugStorage();
+    doExit(2);
+  });
+
   describe('Round 1 - submitBlock & directReplay', async () => {
     doRound();
 
@@ -1209,7 +1271,8 @@ describe('Bridge/RPC', async function () {
       await tryHaltSecondaryNodes(false);
     });
 
-    doExit();
+    debugStorage();
+    doExit(1);
 
     it('Restart nodes[1]', async () => {
       await nodes[1].send('debug_kill',  []);
@@ -1252,7 +1315,8 @@ describe('Bridge/RPC', async function () {
       await tryHaltSecondaryNodes(false);
     });
 
-    doExit();
+    debugStorage();
+    doExit(1);
   });
 
   describe('Round 3 - submitBlock > submitSolution > directReplay', async () => {
@@ -1281,7 +1345,8 @@ describe('Bridge/RPC', async function () {
       await tryHaltSecondaryNodes(false);
     });
 
-    doExit();
+    debugStorage();
+    doExit(1);
   });
 
   describe('Round 4 - forwardChain', async () => {
@@ -1306,7 +1371,8 @@ describe('Bridge/RPC', async function () {
       );
     });
 
-    doExit();
+    debugStorage();
+    doExit(1);
   });
 
   describe('RPC', () => {

@@ -194,27 +194,22 @@ contract GatedComputing {
             // TODO
             // CALLVALUE; 0, key
             // MLOAD; backup1, key...
-            // PUSH1
-            // 32; 32, backup1, key...
+            // PUSH1 32; 32, backup1, key...
             // MLOAD; backup2, backup1, key...
             // SWAP2; key, backup1, backup2
             // CALLVALUE; 0, key, backup1, backup2
             // MSTORE; backup1, backup2...
-            // PUSH1
-            // 32 ; 32, backup1, backup2...
-            // PUSH1
-            // 0xf0; 0xf0, 32, backup1, backup2
+            // PUSH1 32 ; 32, backup1, backup2...
+            // PUSH1 0xf0; 0xf0, 32, backup1, backup2
             // SLOAD; target, 32, backup1, backup2
             // SWAP1; 32, target, backup1, backup2...
             // MSTORE; backup1, backup2.....
-            // PUSH1
-            // 64; 64, backup1, backup2...
+            // PUSH1 64; 64, backup1, backup2...
             // CALLVALUE; 0, 64, backup1, backup2...
-            // keccak256; newKey, backup1, backup2...
+            // SHA3; newKey, backup1, backup2...
             // SLOAD; retval, backup1, backup2...
             // SWAP2; backup2, backup1, retval
-            // PUSH1
-            // 32; 32, backup2, backup1, retval...
+            // PUSH1 32; 32, backup2, backup1, retval...
             // MSTORE; backup1, retval....
             // CALLVALUE; 0, backup1, retval...
             // MSTORE; retval...
@@ -226,33 +221,28 @@ contract GatedComputing {
             // TODO
             // CALLVALUE; 0, key, value
             // MLOAD; backup1, key, value
-            // PUSH1
-            // 32; 32, backup1, key, value
+            // PUSH1 32; 32, backup1, key, value
             // MLOAD; backup2, backup1, key, value
             // SWAP2; key, backup1, backup2, value
             // CALLVALUE; 0, key, backup1, backup2, value
             // MSTORE; backup1, backup2, value
-            // PUSH1
-            // 32; 32, backup1, backup2, value
-            // PUSH1
-            // 0xf0; f0, 32, backup1, backup2, value
+            // PUSH1 32; 32, backup1, backup2, value
+            // PUSH1 0xf0; f0, 32, backup1, backup2, value
             // SLOAD; target, 32, backup1, backup2, value
             // SWAP1; 32, target, backup1, backup2, value
             // MSTORE; backup1, backup2, value
-            // PUSH1
-            // 64; 64, backup1, backup2, value
+            // PUSH1 64; 64, backup1, backup2, value
             // CALLVALUE; 0, 64, backup1, backup2, value
-            // keccak256; newKey, backup1, backup2, value
+            // SHA3; newKey, backup1, backup2, value
             // DUP4; value, newKey, backup1, backup2, value
             // SWAP1; newKey, value, backup1, backup2, value
             // SSTORE; backup1, backup2, value
             // CALLVALUE; 0, backup1, backup2, value
             // MSTORE; backup2, value
-            // PUSH1
-            // 32; 32, backup2, value
+            // PUSH1 32; 32, backup2, value
             // MSTORE; value
             // POP; ...
-            mstore(ptr, 0x3451602051913452602060f05490526040342083905534536020525000000000)
+            mstore(ptr, 0x3451602051913452602060f05490526040342083905534526020525000000000)
             ptr := add(ptr, 28)
           }
           // GAS

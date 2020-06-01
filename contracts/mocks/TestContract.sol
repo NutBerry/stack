@@ -39,6 +39,39 @@ contract TestContract {
     emit TestEvent2(bob, balance);
     emit TestEvent3(bob, balance, true);
     emit BlockBeacon();
+    assembly {
+      mstore(0, 0xbadbeef)
+      log0(0, 0)
+      log0(4, 0)
+      log0(0, 32)
+      log0(4, 34)
+      log0(0, 34)
+      log0(31, 144)
+      log1(0, 0, 0xc0ffebabe)
+      log1(4, 0, 0xc0ffebabe)
+      log1(0, 32, 0xc0ffebabe)
+      log1(4, 34, 0xc0ffebabe)
+      log1(0, 34, 0xc0ffebabe)
+      log1(31, 144, 0xc0ffebabe)
+      log2(0, 0, 0xc0ffebabe, 0xa)
+      log2(4, 0, 0xc0ffebabe, 0xa)
+      log2(0, 32, 0xc0ffebabe, 0xa)
+      log2(4, 34, 0xc0ffebabe, 0xb)
+      log2(0, 34, 0xc0ffebabe, 0xc)
+      log2(31, 144, 0xc0ffebabe, 0xd)
+      log3(0, 0, 0xc0ffebabe, 0xa, 0xa)
+      log3(4, 0, 0xc0ffebabe, 0xa, 0xa)
+      log3(0, 32, 0xc0ffebabe, 0xa, 0xa)
+      log3(4, 34, 0xc0ffebabe, 0xb, 0xa)
+      log3(0, 34, 0xc0ffebabe, 0xc, 0xa)
+      log3(31, 144, 0xc0ffebabe, 0xd, 0xa)
+      log4(0, 0, 0xc0ffebabe, 0xa, 0xa, 0x1)
+      log4(4, 0, 0xc0ffebabe, 0xa, 0xa, 0x1)
+      log4(0, 32, 0xc0ffebabe, 0xa, 0xa, 0x1)
+      log4(4, 34, 0xc0ffebabe, 0xb, 0xa, 0x2)
+      log4(0, 34, 0xc0ffebabe, 0xc, 0xa, 0x5)
+      log4(31, 144, 0xc0ffebabe, 0xd, 0xa, 0x9)
+    }
   }
 
   function testERC721 (address tokenAddr, address alice, address bob, uint256 tokenId) public {
